@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Decide Well | Student Research Tool</title>
+  <style>
+    :root { --accent:#4f46e5; --accent-dark:#3730a3; --ink:#172033; --muted:#68738a; --line:#dbe2ee; --bg:#f5f7fb; --card:#fff; --success:#18794e; --danger:#c43b4d; --warning:#9b6100; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--bg); font:16px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    header { background:#fff; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; }
+    .header-inner, main { width:min(1100px, calc(100% - 32px)); margin:auto; }
+    .header-inner { display:flex; justify-content:space-between; align-items:center; gap:20px; min-height:72px; }
+    .brand { font-size:1.2rem; font-weight:800; letter-spacing:-.02em; } .brand span { color:var(--accent); }
+    nav { display:flex; gap:3px; } .tab { border:0; background:transparent; color:var(--muted); cursor:pointer; font:inherit; padding:10px 13px; border-radius:8px; }
+    .tab:hover, .tab.active { background:#eeefff; color:var(--accent-dark); font-weight:700; }
+    main { padding:34px 0 60px; } .panel { display:none; } .panel.active { display:block; }
+    h1 { font-size:clamp(1.65rem,4vw,2.25rem); letter-spacing:-.04em; margin:0 0 5px; } h2 { font-size:1.15rem; margin:0 0 16px; } .intro { color:var(--muted); margin:0 0 28px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px; margin-bottom:18px; box-shadow:0 2px 8px #19264a08; }
+    .add-row { display:grid; grid-template-columns:minmax(0,1fr) 130px auto; gap:10px; } input, select, button { font:inherit; } input, select { width:100%; padding:10px 12px; border:1px solid #bfc9d9; border-radius:8px; background:#fff; color:var(--ink); } input:focus, select:focus { outline:3px solid #c7d2fe; border-color:var(--accent); }
+    button { cursor:pointer; border:0; border-radius:8px; padding:10px 14px; font-weight:700; } button:focus-visible { outline:3px solid #c7d2fe; outline-offset:2px; } .primary { background:var(--accent); color:#fff; } .primary:hover { background:var(--accent-dark); } .secondary { background:#eef1f7; color:var(--ink); } .danger { background:#fff0f1; color:var(--danger); } .small { padding:7px 10px; font-size:.86rem; }
+    .item-list { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; } .item { display:inline-flex; align-items:center; gap:7px; padding:7px 8px 7px 11px; background:#f0f2ff; color:#32328d; border-radius:999px; font-size:.9rem; } .item button { padding:0; background:none; color:#5359a5; font-size:1.25rem; line-height:1; }
+    .hint, .empty { color:var(--muted); background:#f8fafc; border:1px dashed #cbd5e1; border-radius:9px; padding:13px; } .warning { display:none; margin:0 0 16px; padding:10px 12px; color:#8a3900; background:#fff5e8; border-left:4px solid #e89c32; border-radius:5px; } .warning.show { display:block; }
+    .split { display:grid; grid-template-columns:1fr 1fr; gap:18px; } .ratings { overflow-x:auto; } table { width:100%; border-collapse:collapse; } th { color:var(--muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.05em; text-align:left; } th, td { padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:middle; } .ratings th, .ratings td { white-space:nowrap; } .ratings select { min-width:70px; }
+    .sure-row { display:flex; align-items:center; gap:14px; } input[type="range"] { padding:0; accent-color:var(--accent); } .sure-value { color:var(--accent); font-weight:800; min-width:30px; }
+    .results { display:none; } .results.show { display:block; } .score-row { display:grid; grid-template-columns:130px 1fr 55px; align-items:center; gap:10px; margin:11px 0; } .bar-track { height:28px; border-radius:6px; background:#e8ecf4; overflow:hidden; } .bar { height:100%; background:#8587d8; display:flex; align-items:center; min-width:2px; transition:width .45s ease; } .score-row.winner .bar { background:var(--success); } .winner-label { color:var(--success); font-weight:800; } .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:22px; } .stat { background:#f7f8ff; border:1px solid #e1e4ff; padding:15px; border-radius:10px; } .stat b { display:block; color:var(--accent-dark); font-size:1.55rem; letter-spacing:-.04em; } .stat span { color:var(--muted); font-size:.85rem; }
+    .summary { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; } .summary .stat { background:#fff; } .history-actions { display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center; margin-bottom:17px; } .history-actions > div { display:flex; flex-wrap:wrap; gap:10px; } .history-table { overflow-x:auto; } .feedback { display:flex; gap:7px; align-items:center; min-width:165px; } .feedback select { padding:6px; min-width:55px; } .satisfied { color:var(--success); font-weight:700; }
+    .survey-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:18px; } .survey-section { grid-column:1/-1; margin:6px 0 0; padding:9px 12px; color:var(--accent-dark); background:#eef0ff; border-radius:8px; font-size:.95rem; } .field { margin-bottom:18px; } .field label:first-child, legend { display:block; font-weight:700; margin-bottom:7px; } fieldset { padding:0; margin:0; border:0; } .choices { display:flex; flex-wrap:wrap; gap:8px; } .choice { border:1px solid var(--line); border-radius:8px; padding:7px 10px; color:#43506a; cursor:pointer; } .choice input { width:auto; margin-right:5px; accent-color:var(--accent); } .survey-question.invalid { outline:3px solid #fed7aa; outline-offset:5px; border-radius:7px; } .other-input { margin-top:8px; } .thanks { display:none; color:var(--success); font-weight:700; margin-left:12px; } .thanks.show { display:inline; }
+    @media (max-width:700px) { .header-inner { min-height:64px; } .brand { font-size:1rem; } .tab { font-size:.84rem; padding:8px; } main { width:min(100% - 24px,1100px); padding-top:24px; } .card { padding:16px; } .split, .survey-grid { grid-template-columns:1fr; } .stat-grid { grid-template-columns:repeat(2,1fr); } .summary { grid-template-columns:1fr; } .add-row { grid-template-columns:1fr 105px; } .add-row button { grid-column:1/-1; } .score-row { grid-template-columns:90px 1fr 42px; font-size:.86rem; } }
+  </style>
+</head>
+<body>
+  <header><div class="header-inner"><div class="brand">Decide <span>Well</span></div><nav aria-label="Main navigation"><button class="tab active" data-tab="decision">Make a Decision</button><button class="tab" data-tab="history">History</button><button class="tab" data-tab="survey">Survey</button></nav></div></header>
+  <main>
+    <section id="decision" class="panel active">
+      <h1>Make a decision with confidence</h1><p class="intro">Compare your choices using the factors that matter most to you.</p>
+      <p id="decision-warning" class="warning" role="alert"></p>
+      <div class="split">
+        <div class="card"><h2>1. Add criteria</h2><div class="add-row"><input id="criterion-name" maxlength="60" placeholder="e.g. Cost" aria-label="Criterion name"><select id="criterion-weight" aria-label="Criterion importance"><option value="1">Weight 1</option><option value="2">Weight 2</option><option value="3" selected>Weight 3</option><option value="4">Weight 4</option><option value="5">Weight 5</option></select><button id="add-criterion" class="primary">Add criterion</button></div><div id="criteria-list" class="item-list"><span class="hint">Add the factors you want to compare.</span></div></div>
+        <div class="card"><h2>2. Add options</h2><div class="add-row"><input id="option-name" maxlength="60" placeholder="e.g. Buy a laptop" aria-label="Option name"><span></span><button id="add-option" class="primary">Add option</button></div><div id="options-list" class="item-list"><span class="hint">Add at least two choices to compare.</span></div></div>
+      </div>
+      <div class="card"><h2>3. Rate each option</h2><div id="ratings-empty" class="empty">Add at least one criterion and two options to open the rating grid.</div><div id="ratings-wrap" class="ratings" hidden></div></div>
+      <div id="confidence-card" class="card" hidden><h2>4. Your confidence</h2><div class="sure-row"><label for="sureness">How sure are you about this decision?</label><input id="sureness" type="range" min="1" max="10" value="5"><output id="sureness-value" class="sure-value">5/10</output></div><button id="decide-button" class="primary" style="margin-top:18px">Decide</button></div>
+      <div id="results" class="card results"><h2>Results</h2><p id="winner-text"></p><div id="score-chart"></div><div class="stat-grid"><div class="stat"><b id="quality-stat">—</b><span>Quality</span></div><div class="stat"><b id="certainty-stat">—</b><span>Certainty</span></div><div class="stat"><b id="clarity-stat">—</b><span>Clarity</span></div><div class="stat"><b id="dci-stat">—</b><span>Decision Confidence Index</span></div></div><p id="time-stat" class="intro" style="margin:18px 0 0"></p></div>
+    </section>
+
+    <section id="history" class="panel"><h1>Your decision history</h1><p class="intro">Review your past choices and download data for your research.</p><div id="history-summary" class="summary"></div><div class="card"><div class="history-actions"><h2 style="margin:0">Saved decisions</h2><div><button id="download-history" class="secondary">Download all data (JSON)</button><button id="clear-history" class="danger">Clear history</button></div></div><div id="history-content"></div></div></section>
+
+    <section id="survey" class="panel"><h1>Student decision survey</h1><p class="intro">Your answers support this research project. They are saved only in this browser.</p><div class="card"><form id="survey-form"><div class="survey-grid">
+      <div><div class="field"><label for="age">Age (14–24)</label><input id="age" name="age" type="number" min="14" max="24" required></div><div class="field"><fieldset><legend>How often do you feel stuck deciding what to do first?</legend><div class="choices" data-radio="stuck"><label class="choice"><input required type="radio" name="stuck" value="Never">Never</label><label class="choice"><input type="radio" name="stuck" value="Rarely">Rarely</label><label class="choice"><input type="radio" name="stuck" value="Sometimes">Sometimes</label><label class="choice"><input type="radio" name="stuck" value="Often">Often</label><label class="choice"><input type="radio" name="stuck" value="Very Often">Very Often</label></div></fieldset></div><div class="field"><fieldset><legend>How often do you delay starting because you can't decide?</legend><div class="choices"><label class="choice"><input required type="radio" name="delay" value="Never">Never</label><label class="choice"><input type="radio" name="delay" value="Rarely">Rarely</label><label class="choice"><input type="radio" name="delay" value="Sometimes">Sometimes</label><label class="choice"><input type="radio" name="delay" value="Often">Often</label><label class="choice"><input type="radio" name="delay" value="Very Often">Very Often</label></div></fieldset></div><div class="field"><label for="confidence-after">Confidence after a decision? (1–5)</label><select id="confidence-after" name="confidenceAfter" required><option value="">Select…</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div></div>
+      <div><div class="field"><fieldset><legend>Time to decide what to start?</legend><div class="choices"><label class="choice"><input required type="radio" name="decisionTime" value="under 1 min">Under 1 min</label><label class="choice"><input type="radio" name="decisionTime" value="1-5 min">1–5 min</label><label class="choice"><input type="radio" name="decisionTime" value="5-15 min">5–15 min</label><label class="choice"><input type="radio" name="decisionTime" value="more">More</label></div></fieldset></div><div class="field"><fieldset><legend>Your decision style?</legend><div class="choices"><label class="choice"><input required type="radio" name="decisionStyle" value="quick">Quick</label><label class="choice"><input type="radio" name="decisionStyle" value="compare">Compare</label><label class="choice"><input type="radio" name="decisionStyle" value="postpone">Postpone</label><label class="choice"><input type="radio" name="decisionStyle" value="ask others">Ask others</label></div></fieldset></div><div class="field"><label for="task-skill">How good are you at deciding what task to do first? (1–5)</label><select id="task-skill" name="taskSkill" required><option value="">Select…</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div></div>
+    </div><button class="primary" type="submit">Submit survey</button><span id="survey-thanks" class="thanks">Thank you—your response was saved.</span><button id="download-survey" class="secondary" type="button" style="margin-left:8px">Download survey data (JSON)</button></form></div></section>
+  </main>
+  <script>
+    (() => {
+      const HISTORY_KEY = 'decision_support_history';
+      const SURVEY_KEY = 'decision_support_survey';
+      let criteria = [], options = [], ratings = {}, decisionStartedAt = null;
+      const $ = id => document.getElementById(id);
+      const read = key => { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; } };
+      const write = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+      const escapeHTML = text => String(text).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+      const percent = value => `${Math.round(value)}%`;
+      function warning(message) { const el = $('decision-warning'); el.textContent = message; el.classList.add('show'); }
+      function clearWarning() { $('decision-warning').classList.remove('show'); }
+      function renderLists() {
+        $('criteria-list').innerHTML = criteria.length ? criteria.map((c,i) => `<span class="item">${escapeHTML(c.name)} <b>×${c.weight}</b><button aria-label="Remove ${escapeHTML(c.name)}" data-remove-criterion="${i}">×</button></span>`).join('') : '<span class="hint">Add the factors you want to compare.</span>';
+        $('options-list').innerHTML = options.length ? options.map((o,i) => `<span class="item">${escapeHTML(o)}<button aria-label="Remove ${escapeHTML(o)}" data-remove-option="${i}">×</button></span>`).join('') : '<span class="hint">Add at least two choices to compare.</span>';
+        document.querySelectorAll('[data-remove-criterion]').forEach(b => b.onclick = () => { criteria.splice(+b.dataset.removeCriterion, 1); renderAll(); });
+        document.querySelectorAll('[data-remove-option]').forEach(b => b.onclick = () => { options.splice(+b.dataset.removeOption, 1); if (!options.length) decisionStartedAt = null; renderAll(); });
+      }
+      function renderRatings() {
+        const ready = criteria.length && options.length >= 2;
+        $('ratings-empty').hidden = !!ready; $('ratings-wrap').hidden = !ready; $('confidence-card').hidden = !ready;
+        if (!ready) return;
+        let html = '<table><thead><tr><th>Option</th>' + criteria.map(c => `<th>${escapeHTML(c.name)}<br><small>weight ${c.weight}</small></th>`).join('') + '</tr></thead><tbody>';
+        html += options.map((option, oi) => '<tr><td><b>' + escapeHTML(option) + '</b></td>' + criteria.map((criterion, ci) => { const key = oi + '-' + ci; const value = ratings[key] || 3; return `<td><select data-rating="${key}" aria-label="Rate ${escapeHTML(option)} on ${escapeHTML(criterion.name)}">${[1,2,3,4,5].map(n => `<option value="${n}" ${n === value ? 'selected' : ''}>${n}</option>`).join('')}</select></td>`; }).join('') + '</tr>').join('');
+        $('ratings-wrap').innerHTML = html + '</tbody></table>';
+        document.querySelectorAll('[data-rating]').forEach(s => s.onchange = () => ratings[s.dataset.rating] = +s.value);
+      }
+      function renderAll() { renderLists(); renderRatings(); }
+      $('add-criterion').onclick = () => { const input = $('criterion-name'), name = input.value.trim(); if (!name) return warning('Enter a name for the criterion.'); if (criteria.some(c => c.name.toLowerCase() === name.toLowerCase())) return warning('Each criterion needs a unique name.'); criteria.push({name, weight:+$('criterion-weight').value}); input.value = ''; clearWarning(); renderAll(); };
+      $('add-option').onclick = () => { const input = $('option-name'), name = input.value.trim(); if (!name) return warning('Enter a name for the option.'); if (options.some(o => o.toLowerCase() === name.toLowerCase())) return warning('Each option needs a unique name.'); options.push(name); if (!decisionStartedAt) decisionStartedAt = Date.now(); input.value = ''; clearWarning(); renderAll(); };
+      ['criterion-name','option-name'].forEach(id => $(id).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $(id === 'criterion-name' ? 'add-criterion' : 'add-option').click(); } }));
+      $('sureness').oninput = e => $('sureness-value').textContent = e.target.value + '/10';
+      $('decide-button').onclick = () => {
+        if (!criteria.length || options.length < 2) return warning('Add at least one criterion and two options before deciding.');
+        const totalWeight = criteria.reduce((sum,c) => sum + c.weight, 0);
+        const scoredOptions = options.map((name, oi) => ({ name, score: criteria.reduce((sum,c,ci) => sum + (ratings[oi+'-'+ci] || 3) * c.weight, 0) })).sort((a,b) => b.score - a.score);
+        const winner = scoredOptions[0], second = scoredOptions[1];
+        const quality = winner.score / (5 * totalWeight) * 100;
+        const certainty = +$('sureness').value / 10 * 100;
+        const clarity = (winner.score - second.score) / (4 * totalWeight) * 100;
+        const dci = .4 * certainty + .35 * quality + .25 * clarity;
+        const seconds = decisionStartedAt ? Math.max(1, Math.round((Date.now() - decisionStartedAt) / 1000)) : 0;
+        const record = { id: Date.now(), timestamp:new Date().toISOString(), criteria:criteria.map(c=>({...c})), options:scoredOptions, winner:winner.name, decisionTimeSeconds:seconds, quality, certainty, clarity, dci, satisfaction:null };
+        const history = read(HISTORY_KEY); history.push(record); write(HISTORY_KEY, history);
+        $('winner-text').innerHTML = `Winner: <span class="winner-label">${escapeHTML(winner.name)}</span>`;
+        $('score-chart').innerHTML = scoredOptions.map(o => `<div class="score-row ${o.name === winner.name ? 'winner' : ''}"><span>${escapeHTML(o.name)}</span><div class="bar-track"><div class="bar" style="width:${o.score/(5*totalWeight)*100}%"></div></div><b>${o.score}</b></div>`).join('');
+        $('quality-stat').textContent=percent(quality); $('certainty-stat').textContent=percent(certainty); $('clarity-stat').textContent=percent(clarity); $('dci-stat').textContent=percent(dci); $('time-stat').textContent=`Decision time: ${seconds} second${seconds === 1 ? '' : 's'}.`;
+        $('results').classList.add('show'); $('results').scrollIntoView({behavior:'smooth', block:'nearest'}); renderHistory();
+      };
+      function renderHistory() {
+        const history = read(HISTORY_KEY).sort((a,b)=>b.timestamp.localeCompare(a.timestamp));
+        const total = history.length, avgTime = total ? history.reduce((s,h)=>s+(+h.decisionTimeSeconds||0),0)/total : 0, avgDci = total ? history.reduce((s,h)=>s+(+h.dci||0),0)/total : 0;
+        $('history-summary').innerHTML = [['Total decisions',total],['Average decision time',total ? Math.round(avgTime)+' sec':'—'],['Average DCI',total ? percent(avgDci):'—']].map(x=>`<div class="stat"><b>${x[1]}</b><span>${x[0]}</span></div>`).join('');
+        $('history-content').innerHTML = history.length ? `<div class="history-table"><table><thead><tr><th>Date/time</th><th>Winner</th><th>DCI</th><th>Time</th><th>Satisfaction</th></tr></thead><tbody>${history.map(h => `<tr><td>${new Date(h.timestamp).toLocaleString()}</td><td><b>${escapeHTML(h.winner)}</b></td><td>${percent(h.dci)}</td><td>${h.decisionTimeSeconds}s</td><td>${h.satisfaction == null ? `<div class="feedback"><select data-feedback="${h.id}" aria-label="Satisfaction rating"><option value="">1–5</option>${[1,2,3,4,5].map(n=>`<option>${n}</option>`).join('')}</select><button class="primary small" data-save-feedback="${h.id}">Save feedback</button></div>` : `<span class="satisfied">${h.satisfaction}/5</span>`}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No decisions saved yet. Make your first decision to see it here.</div>';
+        document.querySelectorAll('[data-save-feedback]').forEach(button => button.onclick = () => { const id = +button.dataset.saveFeedback, select = document.querySelector(`[data-feedback="${id}"]`); if (!select.value) return; const current = read(HISTORY_KEY); const item = current.find(h=>h.id===id); if (item) { item.satisfaction=+select.value; write(HISTORY_KEY,current); renderHistory(); } });
+      }
+      function download(key, filename) { const blob = new Blob([JSON.stringify(read(key), null, 2)], {type:'application/json'}), link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download=filename; document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(link.href),0); }
+      $('download-history').onclick = () => download(HISTORY_KEY, 'decision_history.json');
+      $('clear-history').onclick = () => { if (confirm('Clear all saved decision history? This cannot be undone.')) { localStorage.removeItem(HISTORY_KEY); renderHistory(); } };
+      const surveySections = [
+        ['About You', [['age','What is your age?','number'],['gender','Gender?',['Male','Female','Other','Prefer not to say']],['pending_tasks','Pending tasks per day?',['1-2','2-5','5-7','7+']]]],
+        ['Daily Decisions', [['stuck_first','How often do you feel stuck deciding what to do first?',['Never','Rarely','Sometimes','Often','Very Often']],['decision_quality','Quality of your decisions?',['Very Bad','Bad','Average','Good','Very Good']],['delay_start',"How often do you delay starting because you can't decide?",['Never','Rarely','Sometimes','Often','Very Often']],['regret',"How often do you wish you'd done a different task first?",['Never','Rarely','Sometimes','Often','Very Often']],['confidence_after','Confidence after a decision?',['1','2','3','4','5']],['many_tasks','With many tasks you usually:',['easiest','urgent','whatever','freeze']],['decide_time','Time to decide what to start?',['under 1 min','1-5 min','5-15 min','more']],['choice_factors','Important factors when choosing?',['time','difficulty','deadline','mood','importance','other'],'checkbox']]],
+        ['Study', [['support_areas','Areas you need most help with?',['study','daily tasks','purchases','career','social','health'],'checkbox'],['decision_style','Your decision style?',['quick','compare','postpone','ask others']],['hard_subject','Hardest subject?',['Science','Maths','Social','Languages','Business']],['study_challenges','Biggest study challenges?',['focus','time management','motivation','understanding','distractions','other'],'checkbox']]],
+        ['Health & Motivation', [['health_conscious','Are you health conscious?',['1','2','3','4','5']],['exercise_freq','How often do you exercise?',['Never','Rarely','Sometimes','Often','Very Often']],['sleep_hours','Sleep hours per day?',['<4','4-6','6-8','8+']],['unmotivated_freq','How often do you feel unmotivated?',['Never','Rarely','Sometimes','Often','Very Often']],['motivator','What motivates you most?',['reward','deadline','fear','goal','other']]]],
+        ['Career', [['when_unsure','When unsure you usually:',['decide','ask','postpone','over-research']],['career_priority','In career, what matters most?',['salary','passion','stability','growth']],['career_approach','How do you approach career decisions?',['plan','opportunities','others','avoid']],['decide_first_task','How good are you at deciding what task to do first?',['1','2','3','4','5']],['balance_life','Can you balance work and personal life?',['1','2','3','4','5']]]],
+        ['Purchases', [['purchase_time','Time spent deciding before a purchase?',['<5min','5-30min','1-2hr','more']],['purchase_influence','What influences purchases most?',['price','quality','brand','reviews','discounts']],['hard_purchases','Hardest purchase decisions?',['gadgets','clothes','courses','gifts','food','other'],'checkbox']]],
+        ['Social', [['social_challenge','Biggest social decision challenge?',['FOMO','peer pressure','timings','transport','anxiety','unsure']],['ask_friends_freq','How often do you ask friends before social decisions?',['Never','Rarely','Sometimes','Often','Very Often']]]]
+      ];
+      function surveyRadio(name, label, values) { return `<div class="field survey-question" data-question="${name}"><fieldset><legend>${label}</legend><div class="choices">${values.map((value,i) => `<label class="choice"><input ${i===0?'required':''} type="radio" name="${name}" value="${value}">${value}</label>`).join('')}</div></fieldset></div>`; }
+      function surveyCheckboxes(name, label, values) { const hasOther=values.includes('other'); return `<div class="field survey-question" data-question="${name}" data-checkbox-group="true"><fieldset><legend>${label}</legend><div class="choices">${values.map(value => `<label class="choice"><input type="checkbox" name="${name}" value="${value}">${value}</label>`).join('')}</div>${hasOther?`<input class="other-input" type="text" name="${name}_other" maxlength="120" placeholder="If other, please specify">`:''}</fieldset></div>`; }
+      function renderSurvey() {
+        const form=$('survey-form');
+        let html='<div class="survey-grid">';
+        surveySections.forEach(([heading, questions]) => { html+=`<h2 class="survey-section">${heading}</h2>`; questions.forEach(([name,label,values,type]) => { html += type==='checkbox' ? surveyCheckboxes(name,label,values) : values==='number' ? `<div class="field survey-question" data-question="age"><label for="age">What is your age?</label><input id="age" name="age" type="number" min="14" max="24" required></div>` : surveyRadio(name,label,values); }); });
+        form.innerHTML=html+'</div><button class="primary" type="submit">Submit survey</button><span id="survey-thanks" class="thanks">Thank you—your response was saved.</span><button id="download-survey" class="secondary" type="button" style="margin-left:8px">Download survey data (JSON)</button>';
+      }
+      function validateSurvey(form) {
+        const questions=[...form.querySelectorAll('.survey-question')];
+        questions.forEach(q=>q.classList.remove('invalid'));
+        for (const question of questions) {
+          const checkboxGroup=question.dataset.checkboxGroup;
+          const field=question.querySelector('input,select');
+          let valid=checkboxGroup ? !!question.querySelector('input[type="checkbox"]:checked') : field.type==='radio' ? !!question.querySelector('input[type="radio"]:checked') : field.checkValidity();
+          if (valid && checkboxGroup) { const other=question.querySelector('input[value="other"]'); const otherInput=question.querySelector('.other-input'); if (other && other.checked && !otherInput.value.trim()) valid=false; }
+          if (!valid) { question.classList.add('invalid'); question.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>field.focus(),350); return false; }
+        }
+        const age=+$('age').value; if (age<14 || age>24) { const q=$('age').closest('.survey-question'); q.classList.add('invalid'); q.scrollIntoView({behavior:'smooth',block:'center'}); $('age').focus(); return false; } return true;
+      }
+      renderSurvey();
+      $('survey-form').onsubmit = event => { event.preventDefault(); const form=event.currentTarget; if (!validateSurvey(form)) return; const formData=new FormData(form); const response={id:Date.now(),timestamp:new Date().toISOString()}; surveySections.forEach(([,questions])=>questions.forEach(([name,,values,type])=>{ if (values==='number') response[name]=+formData.get(name); else if (type==='checkbox') { response[name]=formData.getAll(name); const other=(formData.get(name+'_other') || '').trim(); if (other) response[name]=response[name].filter(value=>value!=='other').concat('other: '+other); } else response[name]=formData.get(name); })); const data=read(SURVEY_KEY); data.push(response); write(SURVEY_KEY,data); form.reset(); $('survey-thanks').classList.add('show'); };
+      $('download-survey').onclick = () => download(SURVEY_KEY, 'survey_responses.json');
+      document.querySelectorAll('.tab').forEach(tab => tab.onclick = () => { document.querySelectorAll('.tab,.panel').forEach(el=>el.classList.remove('active')); tab.classList.add('active'); $(tab.dataset.tab).classList.add('active'); if(tab.dataset.tab==='history') renderHistory(); });
+      renderAll(); renderHistory();
+    })();
+  </script>
+</body>
+</html>

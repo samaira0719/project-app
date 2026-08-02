@@ -1,0 +1,123 @@
+[
+  {
+    "criteria": {
+      "Cost": 5,
+      "Time": 4
+    },
+    "options": {
+      "Option A": 41,
+      "Option B": 35
+    },
+    "best": "Option A",
+    "decision_seconds": 3.790855407714844e-05,
+    "quality": 0.9111111111111111,
+    "certainty": 0.8,
+    "clarity": 0.14634146341463414,
+    "dci": 0.6191508581752484,
+    "id": 1,
+    "timestamp": "2026-07-19 15:00:42",
+    "satisfaction": 5
+  },
+  {
+    "criteria": {
+      "Priority": 5
+    },
+    "options": {
+      "Follow-up option": 20
+    },
+    "best": "Follow-up option",
+    "decision_seconds": 2.09808349609375e-05,
+    "quality": 0.8,
+    "certainty": 0.6,
+    "clarity": 1.0,
+    "dci": 0.7999999999999999,
+    "id": 2,
+    "timestamp": "2026-07-19 15:00:48",
+    "satisfaction": 4
+  },
+  {
+    "criteria": {
+      "Standalone criterion": 5
+    },
+    "options": {
+      "Standalone option": 20
+    },
+    "best": "Standalone option",
+    "decision_seconds": 3.814697265625e-05,
+    "quality": 0.8,
+    "certainty": 1.0,
+    "clarity": 1.0,
+    "dci": 0.9333333333333332,
+    "id": 3,
+    "timestamp": "2026-07-19 15:00:57",
+    "satisfaction": 2
+  },
+  {
+    "criteria": {
+      "Test criterion": 5
+    },
+    "options": {
+      "Test option": 20
+    },
+    "best": "Test option",
+    "decision_seconds": 3.933906555175781e-05,
+    "quality": 0.8,
+    "certainty": 1.0,
+    "clarity": 1.0,
+    "dci": 0.9333333333333332,
+    "id": 4,
+    "timestamp": "2026-07-19 15:14:32",
+    "satisfaction": 1
+  },
+  {
+    "criteria": {
+      "s": 2
+    },
+    "options": {
+      "s": 4
+    },
+    "best": "s",
+    "decision_seconds": 14.810148000717163,
+    "quality": 0.4,
+    "certainty": 0.8,
+    "clarity": 1.0,
+    "dci": 0.7333333333333334,
+    "id": 5,
+    "timestamp": "2026-07-19 15:17:42",
+    "satisfaction": 4
+  },
+  {
+    "criteria": {
+      "Importance": 5
+    },
+    "options": {
+      "Integrated option": 20
+    },
+    "best": "Integrated option",
+    "decision_seconds": 2.4080276489257812e-05,
+    "quality": 0.8,
+    "certainty": 1.0,
+    "clarity": 1.0,
+    "dci": 0.9333333333333332,
+    "id": 6,
+    "timestamp": "2026-07-19 15:28:09",
+    "satisfaction": 1
+  },
+  {
+    "criteria": {
+      "s": 2
+    },
+    "options": {
+      "s": 6
+    },
+    "best": "s",
+    "decision_seconds": 13.885628938674927,
+    "quality": 0.6,
+    "certainty": 0.8,
+    "clarity": 1.0,
+    "dci": 0.7999999999999999,
+    "id": 7,
+    "timestamp": "2026-07-19 15:30:09",
+    "satisfaction": null
+  }
+]
