@@ -1,0 +1,5 @@
+# This project uses only the Python standard library.
+# No third-party packages are required.
+langchain-google-genai==4.3.2
+langchain-core==1.5.3
+pydantic==2.13.4
