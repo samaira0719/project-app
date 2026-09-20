@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Decide Well - Student Decision Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Sora:wght@600;700;800&family=Fraunces:ital,opsz,wght@1,9..144,500;1,9..144,600&display=swap" rel="stylesheet" />
+  <link rel="icon" type="image/png" href="/static/assets/favicon.png" />
+  <link rel="stylesheet" href="/static/css/styles.css?v=50" />
+  <script>
+    /* Stamp the theme before the first paint, otherwise the page flashes the
+       light palette while the module script is still loading. Kept inline and
+       tiny for that reason. "system" stores nothing and follows the OS. */
+    (function () {
+      try {
+        var saved = localStorage.getItem("dw_theme") || "system";
+        var dark = saved === "dark" || (saved === "system" &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+      } catch (e) {
+        document.documentElement.setAttribute("data-theme", "light");
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- ============ AUTH ============ -->
+  <section id="auth-screen" class="auth hidden">
+    <div class="auth-shell">
+      <canvas id="auth-canvas" class="auth-canvas" aria-hidden="true"></canvas>
+
+      <header class="auth-topbar">
+        <div class="brand-mark">
+          <!-- The auth shell is dark in both themes, so it always takes the
+               light-on-dark cut of the mark. -->
+          <img src="/static/assets/logo-dark.png" alt="Decide Well" class="brand-logo" />
+        </div>
+        <button type="button" class="about-btn" id="about-btn">About Us</button>
+      </header>
+
+      <div class="auth-body">
+        <div class="auth-left">
+          <h1>Make decisions<br />with <span class="accent">confidence</span>.</h1>
+          <p class="auth-sub">Your personalized decision-making companion<br />for everyday choices that matter.</p>
+
+          <form id="auth-form" class="auth-card is-collapsed" novalidate>
+            <div class="auth-fields">
+              <div id="auth-name-row" class="field hidden">
+                <label for="auth-name">Name</label>
+                <input id="auth-name" type="text" autocomplete="name" placeholder="Your name" />
+              </div>
+              <div class="field">
+                <label for="auth-email">Email</label>
+                <input id="auth-email" type="email" autocomplete="email" placeholder="you@university.edu" required />
+              </div>
+              <div class="field">
+                <label for="auth-password">Password</label>
+                <input id="auth-password" type="password" autocomplete="current-password" placeholder="At least 6 characters" required minlength="6" />
+              </div>
+              <!-- Data-protection consent. Rendered by app.js from
+                   GET /api/privacy/notice so the text a user agrees to is the
+                   same text the server records them as having agreed to.
+                   Sign-up only; the login form never shows it. -->
+              <div id="auth-consent" class="consent hidden"></div>
+
+              <p id="auth-error" class="form-error hidden" role="alert"></p>
+            </div>
+
+            <button type="submit" class="btn-cta" id="auth-submit">
+              <span class="cta-main">
+                <svg class="cta-ico" width="21" height="21" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="8" r="3.6" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                  <path d="M4.8 20c0-3.6 3.2-5.8 7.2-5.8s7.2 2.2 7.2 5.8" fill="none"
+                        stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+                <span id="auth-submit-label">Log In</span>
+              </span>
+              <svg class="cta-arrow" width="19" height="19" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 12h15M13 6l6 6-6 6" fill="none" stroke="currentColor"
+                      stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </form>
+
+          <div class="auth-or" id="auth-or"><span>or</span></div>
+
+          <button type="button" class="btn-cta btn-cta--alt" id="new-user-btn">
+            <span class="cta-main">
+              <svg class="cta-ico" width="21" height="21" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="10" cy="8" r="3.6" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M3 20c0-3.6 3.1-5.8 7-5.8 1.2 0 2.3.2 3.3.6" fill="none"
+                      stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M18 13.5v6M15 16.5h6" fill="none"
+                      stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+              <span>New User</span>
+            </span>
+            <svg class="cta-arrow" width="19" height="19" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 12h15M13 6l6 6-6 6" fill="none" stroke="currentColor"
+                    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+
+          <p class="auth-switch hidden" id="auth-switch-row">
+            <span id="auth-switch-label">Already have an account?</span>
+            <a href="#" id="auth-switch-link">Log in</a>
+          </p>
+        </div>
+      </div>
+
+      <footer class="auth-footer">
+        <span class="ftr-item">
+          <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v6c0 4.4 3 8 7 9 4-1 7-4.6 7-9V6Z"
+            fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+          Private &amp; Secure
+        </span>
+        <i></i>
+        <span class="ftr-item">
+          <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3.2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+            <path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5M16 7.2a3.2 3.2 0 0 1 0 6M17.6 19c0-2.6-1.2-4.2-3-4.8"
+            fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          Built for 14-30
+        </span>
+        <i></i>
+        <span class="ftr-item">
+          <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V11M12 19V5M19 19v-6"
+            fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+          Smarter Decisions
+        </span>
+      </footer>
+
+    </div>
+  </section>
+
+  <!-- ============ APP ============ -->
+  <section id="app-shell" class="app hidden">
+    <header class="app-header">
+      <div class="app-brand">
+        <!-- Two cuts of the same mark; the CSS shows whichever suits the
+             active theme, since the navy wordmark vanishes on a dark header. -->
+        <img src="/static/assets/logo.png" alt="Decide Well" class="logo-img logo-img--light" />
+        <img src="/static/assets/logo-dark.png" alt="" aria-hidden="true" class="logo-img logo-img--dark" />
+      </div>
+      <nav class="app-nav" id="app-nav" aria-label="Main">
+        <button data-view="tasks">Tasks</button>
+        <button data-view="decide">Decide</button>
+        <button data-view="insights">Insights</button>
+        <button data-view="history">History</button>
+        <button data-view="survey">Profile</button>
+      </nav>
+      <div class="app-user">
+        <div class="theme-switch" id="theme-switch" role="group" aria-label="Colour theme">
+          <button type="button" data-theme-choice="light" title="Light" aria-label="Light theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4.2"/>
+              <path d="M12 2.6v2.2M12 19.2v2.2M4.3 4.3l1.6 1.6M18.1 18.1l1.6 1.6M2.6 12h2.2M19.2 12h2.2M4.3 19.7l1.6-1.6M18.1 5.9l1.6-1.6"/>
+            </svg>
+          </button>
+          <button type="button" data-theme-choice="dark" title="Dark" aria-label="Dark theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a8.6 8.6 0 1 0 11.1 11.1Z"/>
+            </svg>
+          </button>
+          <button type="button" data-theme-choice="system" title="Match my device" aria-label="Match system theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="2.8" y="4" width="18.4" height="12.4" rx="2"/>
+              <path d="M8.6 20h6.8M12 16.4V20"/>
+            </svg>
+          </button>
+        </div>
+        <span id="user-avatar" class="avatar">-</span>
+        <button id="logout-btn" class="ghost-btn">Log out</button>
+      </div>
+    </header>
+
+    <main class="app-main">
+
+      <!-- ---- TASKS ---- -->
+      <div id="view-tasks" class="view">
+        <div class="tasks-layout">
+          <aside class="task-form-col">
+            <form id="task-form" class="card task-form" novalidate>
+              <h2 class="card-title">Add a task</h2>
+              <div class="field">
+                <label for="task-title">What needs doing?</label>
+                <input id="task-title" type="text" placeholder="e.g. Finish ML assignment" required maxlength="255" />
+              </div>
+              <div class="field-row stacked">
+                <div class="field">
+                  <label for="task-category">Type</label>
+                  <select id="task-category" required>
+                    <option value="Study">Study</option>
+                    <option value="Purchases">Purchases</option>
+                    <option value="Travel">Travel</option>
+                    <option value="Entertainment">Entertainment</option>
+                    <option value="Personal">Personal</option>
+                    <option value="Career">Career</option>
+                    <option value="Health">Health</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="task-due-trigger">Due date</label>
+                  <!-- Custom calendar: the native datetime-local popup renders
+                       differently in every browser and reads badly. The real
+                       value still lives in the hidden #task-due input, in the
+                       same "YYYY-MM-DDTHH:mm" shape the form already expects. -->
+                  <div class="dp" id="task-due-picker">
+                    <input id="task-due" type="hidden" />
+                    <button type="button" id="task-due-trigger" class="dp-trigger"
+                            aria-haspopup="dialog" aria-expanded="false">
+                      <span class="dp-display" id="task-due-display">Pick a date</span>
+                      <svg class="dp-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="5" width="18" height="16" rx="3" />
+                        <path d="M3 10h18M8 3v4M16 3v4" />
+                      </svg>
+                    </button>
+                    <div id="task-due-pop" class="dp-pop hidden" role="dialog"
+                         aria-label="Choose a due date"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field" id="study-fields">
+                <label for="task-estimate">Estimated time to complete</label>
+                <div class="estimate-row">
+                  <input id="task-estimate" type="number" min="5" max="6000" step="5" value="60" />
+                  <span class="unit">min</span>
+                </div>
+                <div class="estimate-chips">
+                  <button type="button" data-min="30">30m</button>
+                  <button type="button" data-min="60">1h</button>
+                  <button type="button" data-min="120">2h</button>
+                  <button type="button" data-min="240">4h</button>
+                </div>
+              </div>
+
+              <p id="task-error" class="form-error hidden" role="alert"></p>
+              <button type="submit" class="btn-primary">Add task</button>
+            </form>
+          </aside>
+
+          <div class="task-list-col">
+            <div class="list-head">
+              <h2>Your tasks</h2>
+              <div class="head-controls">
+                <div class="seg" id="task-layout" role="tablist">
+                  <button data-l="list" class="active">List</button>
+                  <button data-l="matrix">Matrix</button>
+                </div>
+                <div class="seg" id="task-filter" role="tablist">
+                  <button data-f="pending" class="active">Pending</button>
+                  <button data-f="done">Done</button>
+                  <button data-f="">All</button>
+                </div>
+              </div>
+            </div>
+            <div id="task-list" class="stack"></div>
+            <div id="task-matrix" class="hidden"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- DECIDE ---- -->
+      <div id="view-decide" class="view hidden">
+        <div class="list-head">
+          <div>
+            <h2>Your first move</h2>
+            <p class="muted">Ranked by urgency, importance, effort and aging - tuned to your survey.</p>
+          </div>
+          <button id="explain-btn" class="btn-dark">Explain with AVEX</button>
+        </div>
+        <div id="up-next"></div>
+        <div id="insight-panel" class="insight-panel hidden">
+          <div class="insight-head">
+            <span>Why this order</span>
+            <span id="insight-source" class="tag"></span>
+          </div>
+          <div id="insight-body"></div>
+        </div>
+        <div id="decide-list" class="stack"></div>
+      </div>
+
+      <!-- ---- INSIGHTS ---- -->
+      <div id="view-insights" class="view hidden">
+        <div class="list-head"><h2>Your decision patterns</h2></div>
+        <div class="stat-grid" id="stat-grid"></div>
+        <div class="two-col">
+          <div class="card">
+            <h3 class="card-title">Tasks by category</h3>
+            <div id="category-bars" class="stack-sm"></div>
+          </div>
+          <div class="card">
+            <h3 class="card-title">How your survey shapes the ranking</h3>
+            <ul id="tips-list" class="tips"></ul>
+          </div>
+        </div>
+
+        <!-- Decision tempo. Two trends from /api/insights/tempo: whether the
+             time spent per decision is falling (getting faster) and whether
+             the number of decisions is rising (growing confidence). -->
+        <div class="card tempo-card">
+          <div class="bs-card-head">
+            <div>
+              <h3 class="card-title" style="margin-bottom:4px">Decision tempo</h3>
+              <p class="muted">Are your decisions getting quicker - and are you
+                making more of them?</p>
+            </div>
+            <div class="tempo-grain" id="tempo-grain" role="group" aria-label="Group decisions by">
+              <button type="button" data-g="" class="active">Auto</button>
+              <button type="button" data-g="day">Day</button>
+              <button type="button" data-g="week">Week</button>
+            </div>
+          </div>
+          <div id="tempo-body"></div>
+        </div>
+
+        <!-- What the feedback loop has learned. Rendered from
+             /api/feedback/profile; empty until the user opts in. -->
+        <div class="card learn-card" id="learn-card"></div>
+
+        <div class="card bs-card">
+          <div class="bs-card-head">
+            <div>
+              <h3 class="card-title" style="margin-bottom:4px">Behavioural science correlation</h3>
+              <p class="muted">Where your answers meet the research - and the engine
+                parameter each finding actually moved.</p>
+            </div>
+            <span class="tag">Evidence</span>
+          </div>
+          <div id="bs-params" class="bs-params"></div>
+          <div id="bs-links" class="bs-links"></div>
+        </div>
+      </div>
+
+      <!-- ---- HISTORY ---- -->
+      <div id="view-history" class="view hidden">
+        <div class="list-head"><h2>Decision history</h2></div>
+        <div id="history-list" class="stack"></div>
+      </div>
+
+      <!-- ---- SURVEY ---- -->
+      <div id="view-survey" class="view hidden">
+        <div id="survey-root" class="survey-shell"></div>
+        <!-- Consent controls and the data rights the sign-up notice promises.
+             Withdrawing has to be as easy as agreeing was, so the same
+             switches live here, not buried in a settings sub-page. -->
+        <div id="privacy-card" class="card privacy-card"></div>
+      </div>
+
+    </main>
+
+    <footer class="app-footer">decidewell · scoring engine + AVEX insights</footer>
+
+    <!-- ============ AVEX ASSISTANT ============
+         Lives inside #app-shell so it exists only for a signed-in user; the
+         auth screen never shows it. Hovering the circle previews the panel,
+         clicking pins it open. -->
+    <div id="chat-widget" class="chat-widget" data-open="false">
+
+      <section id="chat-panel" class="chat-panel" role="dialog"
+               aria-label="Ask AVEX" aria-hidden="true">
+        <header class="chat-head">
+          <span class="chat-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3.2c4.7 0 8.5 3.2 8.5 7.2s-3.8 7.2-8.5 7.2c-1 0-2-.1-2.9-.4L5 19l1-3.2C4.4 14.5 3.5 12.9 3.5 10.4c0-4 3.8-7.2 8.5-7.2Z"/>
+              <path d="M8.6 10.6h.01M12 10.6h.01M15.4 10.6h.01"/>
+            </svg>
+          </span>
+          <div class="chat-id">
+            <strong>AVEX</strong>
+            <span class="chat-status" id="chat-status">Knows your tasks</span>
+          </div>
+          <button type="button" id="chat-reset" class="chat-icon-btn"
+                  title="Start a new conversation" aria-label="Start a new conversation">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>
+            </svg>
+          </button>
+          <button type="button" id="chat-close" class="chat-icon-btn"
+                  title="Close" aria-label="Close the assistant">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                 stroke-linecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18"/>
+            </svg>
+          </button>
+        </header>
+
+        <div id="chat-log" class="chat-log" role="log" aria-live="polite"></div>
+        <div id="chat-chips" class="chat-chips"></div>
+
+        <form id="chat-form" class="chat-compose">
+          <textarea id="chat-input" rows="1" maxlength="2000"
+                    placeholder="Ask about your tasks or the app"
+                    aria-label="Your message"></textarea>
+          <button type="submit" id="chat-send" class="chat-send" aria-label="Send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4.5 12h13M12 6.2l5.8 5.8-5.8 5.8"/>
+            </svg>
+          </button>
+        </form>
+      </section>
+
+      <button type="button" id="chat-fab" class="chat-fab"
+              aria-expanded="false" aria-controls="chat-panel" aria-label="Ask AVEX">
+        <span class="chat-fab-tip" aria-hidden="true">Ask AVEX</span>
+        <svg class="chat-fab-ico chat-fab-ico--open" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.9" stroke-linecap="round"
+             stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3.2c4.7 0 8.5 3.2 8.5 7.2s-3.8 7.2-8.5 7.2c-1 0-2-.1-2.9-.4L5 19l1-3.2C4.4 14.5 3.5 12.9 3.5 10.4c0-4 3.8-7.2 8.5-7.2Z"/>
+          <path d="M8.6 10.6h.01M12 10.6h.01M15.4 10.6h.01"/>
+        </svg>
+        <svg class="chat-fab-ico chat-fab-ico--close" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+             aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18"/>
+        </svg>
+      </button>
+    </div>
+
+  </section>
+
+  <!-- per-task decision workspace -->
+  <div id="modal-root" class="modal-backdrop hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Decision workspace">
+      <button id="modal-close" class="modal-close" aria-label="Close">✕</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <script type="module" src="/static/js/app.js?v=37"></script>
+</body>
+</html>
