@@ -24,7 +24,11 @@ API docs (Swagger): http://127.0.0.1:8000/docs
 1. **Log in / Sign up** - JWT auth; every user's tasks, survey and history are isolated.
    Sign-up presents the data-protection notice with one checkbox per purpose; the two
    optional ones are genuinely optional (see [Data privacy and consent](#data-privacy-and-consent)).
-2. **New users** are routed to the survey wizard; returning users land on the dashboard.
+2. **New users** are routed to the survey wizard; returning users land on **Decide**, the
+   home screen: "What are you deciding?" in their own words, what it's about, and when
+   they need to decide. Start creates the task and opens a step-by-step workspace
+   (Options, What matters, Answer). The header has two tabs, Decide and My tasks;
+   Insights, History and Profile sit in the menu under the user's initials.
 3. **Add tasks** - category dropdown (Study, Purchases, Travel, Entertainment, Personal,
    Career, Health, Other) with due date. Category-specific behavior:
    - **Study** adds an estimated time to complete
@@ -32,8 +36,8 @@ API docs (Swagger): http://127.0.0.1:8000/docs
    - everything else is just title + due date + category
 4. Tasks are stored per-user in **Neon Postgres** (`DATABASE_URL` in `.env`; falls back
    to local SQLite if unset).
-5. The engine **auto-ranks** pending tasks; the Decide tab shows the Up Next card,
-   factor breakdowns and an AI explanation.
+5. The engine **auto-ranks** pending tasks; My tasks opens on a "Start with this" card for
+   the #1 task, with its reason and a "Why this order?" AI explanation.
 6. Each decision returns a **confidence** and a **predicted satisfaction** percentage,
    both itemised. Afterwards the user says how it actually went, and that verdict
    retunes the engine for them - see [The feedback loop](#the-feedback-loop).
@@ -79,7 +83,7 @@ and the backend validates submissions against the same spec.
 
 It **branches**. Steps 1-4 are asked of everybody and carry every answer the scoring
 engine and the decision engine actually read (`motivator`, `many_tasks`, `choice_factors`,
-`decision_style`, `when_unsure` and the procrastination scales), so nothing downstream can
+`when_unsure` and the procrastination scales), so nothing downstream can
 lose an input it depends on. Step 4 - *Where you need help* - is the branch point: each
 later section names the support areas that unlock it.
 
@@ -87,12 +91,12 @@ later section names the support areas that unlock it.
 |---|---|---|
 | Studies | Studies | hardest subject, challenges, when you focus best, session length, how close a deadline gets before you start |
 | Health & energy | Health | health consciousness, exercise, sleep, when energy crashes, what blocks self-care |
-| Motivation & confidence | Motivation *or* Confidence | how often unmotivated, what kills motivation, restart effort, accountability, self-trust |
+| Motivation & confidence | Motivation *or* Confidence | how often unmotivated, what kills motivation, restart effort, self-trust |
 | Career | Career | priority, approach, clarity on what's next, what makes it hard |
 | Travel planning | Travel Planning | hardest part, what you protect when something gives, lead time |
-| Purchases & money | Purchases | deciding time, what influences you, hardest categories, regret, budget clarity |
-| Managing time | Managing Time | first-task skill, life balance, planning horizon, overcommitting, where time leaks |
-| Social life | Social Activity *or* Entertainment | biggest challenge, asking friends, what recharges you, going out when you'd rather rest |
+| Purchases & money | Purchases | what influences you, hardest categories, regret, budget clarity |
+| Managing time | Managing Time | life balance, planning horizon, overcommitting, where time leaks |
+| Social life | Social Activity *or* Entertainment | biggest challenges (pick several), asking friends, what recharges you, going out when you'd rather rest |
 
 Sections declare `depends_on` as `{"key": "support_areas", "contains": x}` or
 `{..., "contains_any": [...]}`; the same two forms work per question. `validate_answers`

@@ -36,7 +36,7 @@ from __future__ import annotations
 from typing import Any
 
 # Date-stamped so a support ticket can name the exact text that was shown.
-POLICY_VERSION = "2026-09-20"
+POLICY_VERSION = "2026-09-27"
 
 # Scope keys the API will accept. "essential" is not optional - without it
 # there is no account to store anything in, so it is refused at registration
@@ -115,6 +115,10 @@ CONSENT_SCOPES: list[dict[str, Any]] = [
         "key": "ai_processing",
         "title": "Let AVEX (Google Gemini) read my task context",
         "required": False,
+        # Not a separate box on the sign-up form: it is disclosed in the
+        # full notice, switched on with the account so AVEX works from the
+        # first decision, and can be turned off any time in the Profile tab.
+        "at_signup": False,
         "summary": (
             "Send the wording of your tasks and options to Google's Gemini "
             "API so AVEX can rate options and explain your ranking."
@@ -140,10 +144,10 @@ CONSENT_SCOPES: list[dict[str, Any]] = [
             "no separate copy of the prompt."
         ),
         "if_declined": (
-            "AVEX stays off. The assistant answers from the built-in "
-            "rule-based engine, insights come from the engine's own "
-            "explanations, and you rate the options yourself instead of the "
-            "AI pre-filling them. No task text is sent to Google."
+            "AVEX is on when the account is created so explanations work from "
+            "your first decision. Switch it off in the Profile tab and no task "
+            "text leaves this server - the built-in rule-based engine writes "
+            "the explanations instead."
         ),
         "withdrawal": "Turning this off takes effect on your very next request.",
     },
@@ -215,8 +219,52 @@ AGE_NOTICE = (
 
 SUMMARY_LINE = (
     "We collect only what the engine needs to rank your tasks and explain "
-    "itself. Two purposes below are optional and the app works without them."
+    "itself. The learning purpose below is optional and the app works without "
+    "it; AVEX (Google Gemini) explanations are on by default and can be "
+    "switched off any time from the Profile tab."
 )
+
+# Decide Well is a personal student project. The full notice says so, and
+# carries the user-testing terms from the consent form, so a tester reads the
+# same thing on screen as on paper.
+PROJECT_CONTEXT: dict[str, Any] = {
+    "title": "About this project",
+    "lines": [
+        "Decide Well - Student Decision Lab is a personal student project "
+        "built to help students organise their work and think decisions "
+        "through. It is not a commercial product.",
+        "It is not affiliated with, endorsed by, reviewed by or certified by "
+        "any school, examination board, university, government department, "
+        "counsellor, psychologist, career advisor or technology company, "
+        "including Google.",
+        "Recommendations are an organisational and educational aid only. They "
+        "are not academic, career, admissions, medical, mental-health, "
+        "financial, legal or other professional advice. The app recommends; "
+        "it never acts for you, and you can always ignore or override it.",
+        "AI-written explanations can be incomplete or wrong. For important "
+        "decisions, talk to a parent, teacher or qualified person.",
+    ],
+    "testing_title": "If you are helping us test",
+    "testing": [
+        "You may use sample or made-up tasks, a nickname and a test email "
+        "address. Entering real information is never required.",
+        "Please do not enter identity numbers (Aadhaar, PAN, passport, school "
+        "ID), phone numbers, addresses, passwords of other accounts, OTPs, "
+        "bank or payment details, health or mental-health information, "
+        "private family matters, or personal information about other people.",
+        "Individual task text, names, email addresses and survey answers are "
+        "never shown in project reports, screenshots, videos or "
+        "presentations. Screenshots use demo accounts only.",
+        "Usage data may appear in anonymised, combined form only - for example "
+        "average decision time or how often recommendations were followed.",
+        "Participation is voluntary. You can stop at any time, skip any "
+        "question, download everything held about you, and delete your "
+        "account and data from the Profile tab.",
+        "Data is never sold, shared publicly, used for advertising or for "
+        "marketing. The only outside service that may receive data is "
+        "Google's Gemini API, and only while AVEX is switched on.",
+    ],
+}
 
 # Learning events older than this are pruned on write (see feedback.py).
 LEARNING_RETENTION_DAYS = 730
@@ -231,6 +279,7 @@ def notice() -> dict[str, Any]:
         "practices": DATA_PRACTICES,
         "rights": YOUR_RIGHTS,
         "age_notice": AGE_NOTICE,
+        "project": PROJECT_CONTEXT,
         "optional_scopes": list(OPTIONAL_SCOPES),
         "retention_days": LEARNING_RETENTION_DAYS,
     }

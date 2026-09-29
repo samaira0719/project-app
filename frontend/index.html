@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Sora:wght@600;700;800&family=Fraunces:ital,opsz,wght@1,9..144,500;1,9..144,600&display=swap" rel="stylesheet" />
   <link rel="icon" type="image/png" href="/static/assets/favicon.png" />
-  <link rel="stylesheet" href="/static/css/styles.css?v=50" />
+  <link rel="stylesheet" href="/static/css/styles.css?v=55" />
   <script>
     /* Stamp the theme before the first paint, otherwise the page flashes the
        light palette while the module script is still loading. Kept inline and
@@ -54,7 +54,7 @@
               </div>
               <div class="field">
                 <label for="auth-email">Email</label>
-                <input id="auth-email" type="email" autocomplete="email" placeholder="you@university.edu" required />
+                <input id="auth-email" type="email" autocomplete="email" placeholder="Your email address" required />
               </div>
               <div class="field">
                 <label for="auth-password">Password</label>
@@ -145,11 +145,8 @@
         <img src="/static/assets/logo-dark.png" alt="" aria-hidden="true" class="logo-img logo-img--dark" />
       </div>
       <nav class="app-nav" id="app-nav" aria-label="Main">
-        <button data-view="tasks">Tasks</button>
         <button data-view="decide">Decide</button>
-        <button data-view="insights">Insights</button>
-        <button data-view="history">History</button>
-        <button data-view="survey">Profile</button>
+        <button data-view="tasks">My tasks</button>
       </nav>
       <div class="app-user">
         <div class="theme-switch" id="theme-switch" role="group" aria-label="Colour theme">
@@ -174,7 +171,18 @@
             </svg>
           </button>
         </div>
-        <span id="user-avatar" class="avatar">-</span>
+        <!-- Secondary views live behind the avatar so the header only
+             carries the two everyday ones. -->
+        <div class="user-menu" id="user-menu">
+          <button type="button" id="user-avatar" class="avatar"
+                  aria-haspopup="menu" aria-expanded="false" aria-controls="user-menu-list"
+                  aria-label="Account menu">-</button>
+          <div class="user-menu-list hidden" id="user-menu-list" role="menu">
+            <button type="button" role="menuitem" data-view="insights">Insights</button>
+            <button type="button" role="menuitem" data-view="history">History</button>
+            <button type="button" role="menuitem" data-view="survey">Profile</button>
+          </div>
+        </div>
         <button id="logout-btn" class="ghost-btn">Log out</button>
       </div>
     </header>
@@ -184,82 +192,30 @@
       <!-- ---- TASKS ---- -->
       <div id="view-tasks" class="view">
         <div class="tasks-layout">
-          <aside class="task-form-col">
-            <form id="task-form" class="card task-form" novalidate>
-              <h2 class="card-title">Add a task</h2>
-              <div class="field">
-                <label for="task-title">What needs doing?</label>
-                <input id="task-title" type="text" placeholder="e.g. Finish ML assignment" required maxlength="255" />
-              </div>
-              <div class="field-row stacked">
-                <div class="field">
-                  <label for="task-category">Type</label>
-                  <select id="task-category" required>
-                    <option value="Study">Study</option>
-                    <option value="Purchases">Purchases</option>
-                    <option value="Travel">Travel</option>
-                    <option value="Entertainment">Entertainment</option>
-                    <option value="Personal">Personal</option>
-                    <option value="Career">Career</option>
-                    <option value="Health">Health</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="task-due-trigger">Due date</label>
-                  <!-- Custom calendar: the native datetime-local popup renders
-                       differently in every browser and reads badly. The real
-                       value still lives in the hidden #task-due input, in the
-                       same "YYYY-MM-DDTHH:mm" shape the form already expects. -->
-                  <div class="dp" id="task-due-picker">
-                    <input id="task-due" type="hidden" />
-                    <button type="button" id="task-due-trigger" class="dp-trigger"
-                            aria-haspopup="dialog" aria-expanded="false">
-                      <span class="dp-display" id="task-due-display">Pick a date</span>
-                      <svg class="dp-icon" viewBox="0 0 24 24" aria-hidden="true">
-                        <rect x="3" y="5" width="18" height="16" rx="3" />
-                        <path d="M3 10h18M8 3v4M16 3v4" />
-                      </svg>
-                    </button>
-                    <div id="task-due-pop" class="dp-pop hidden" role="dialog"
-                         aria-label="Choose a due date"></div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="field" id="study-fields">
-                <label for="task-estimate">Estimated time to complete</label>
-                <div class="estimate-row">
-                  <input id="task-estimate" type="number" min="5" max="6000" step="5" value="60" />
-                  <span class="unit">min</span>
-                </div>
-                <div class="estimate-chips">
-                  <button type="button" data-min="30">30m</button>
-                  <button type="button" data-min="60">1h</button>
-                  <button type="button" data-min="120">2h</button>
-                  <button type="button" data-min="240">4h</button>
-                </div>
-              </div>
-
-              <p id="task-error" class="form-error hidden" role="alert"></p>
-              <button type="submit" class="btn-primary">Add task</button>
-            </form>
-          </aside>
-
           <div class="task-list-col">
             <div class="list-head">
               <h2>Your tasks</h2>
               <div class="head-controls">
                 <div class="seg" id="task-layout" role="tablist">
                   <button data-l="list" class="active">List</button>
-                  <button data-l="matrix">Matrix</button>
+                  <button data-l="matrix" title="Urgent vs important grid">Grid</button>
                 </div>
                 <div class="seg" id="task-filter" role="tablist">
-                  <button data-f="pending" class="active">Pending</button>
+                  <button data-f="pending" class="active">To do</button>
                   <button data-f="done">Done</button>
                   <button data-f="">All</button>
                 </div>
               </div>
+            </div>
+            <!-- "Start with this": the top-ranked task, with the reason and
+                 an on-demand AVEX explanation of the whole order. -->
+            <div id="up-next"></div>
+            <div id="insight-panel" class="insight-panel hidden">
+              <div class="insight-head">
+                <span>Why this order</span>
+                <span id="insight-source" class="tag"></span>
+              </div>
+              <div id="insight-body"></div>
             </div>
             <div id="task-list" class="stack"></div>
             <div id="task-matrix" class="hidden"></div>
@@ -267,40 +223,90 @@
         </div>
       </div>
 
-      <!-- ---- DECIDE ---- -->
+      <!-- ---- DECIDE (home) ----
+           The front door: one question, in the user's own words. Submitting
+           creates the task behind the scenes and opens the step-by-step
+           decision workspace on it. -->
       <div id="view-decide" class="view hidden">
-        <div class="list-head">
-          <div>
-            <h2>Your first move</h2>
-            <p class="muted">Ranked by urgency, importance, effort and aging - tuned to your survey.</p>
+        <div id="setup-banner"></div>
+        <form id="ask-form" class="card ask-card" novalidate>
+          <div class="ask-steps" aria-hidden="true">
+            <span class="on">1 What</span><i></i><span>2 Options</span><i></i><span>3 What matters</span><i></i><span>4 Answer</span>
           </div>
-          <button id="explain-btn" class="btn-dark">Explain with AVEX</button>
-        </div>
-        <div id="up-next"></div>
-        <div id="insight-panel" class="insight-panel hidden">
-          <div class="insight-head">
-            <span>Why this order</span>
-            <span id="insight-source" class="tag"></span>
+          <h2 class="ask-title"><label for="ask-title">What are you deciding?</label></h2>
+          <p class="muted ask-sub">Type it in your own words. We'll take you through it in a few short steps.</p>
+          <input id="ask-title" class="ask-input" type="text" maxlength="255"
+                 placeholder="e.g. Which laptop should I buy?" autocomplete="off" />
+
+          <div class="ask-group">
+            <span class="ask-label" id="ask-cat-label">What's it about?</span>
+            <div class="ask-chips" id="ask-category" role="radiogroup" aria-labelledby="ask-cat-label">
+              <button type="button" role="radio" aria-checked="false" data-cat="Study">Study</button>
+              <button type="button" role="radio" aria-checked="false" data-cat="Career">Career</button>
+              <button type="button" role="radio" aria-checked="false" data-cat="Purchases">Buying something</button>
+              <button type="button" role="radio" aria-checked="false" data-cat="Travel">Travel</button>
+              <button type="button" role="radio" aria-checked="false" data-cat="Health">Health</button>
+              <button type="button" role="radio" aria-checked="false" data-cat="Entertainment">Fun &amp; free time</button>
+              <button type="button" role="radio" aria-checked="false" data-cat="Personal">Personal</button>
+              <button type="button" role="radio" aria-checked="false" data-cat="Other">Something else</button>
+            </div>
           </div>
-          <div id="insight-body"></div>
-        </div>
-        <div id="decide-list" class="stack"></div>
+
+          <div class="ask-group">
+            <span class="ask-label" id="ask-when-label">When do you need to decide?</span>
+            <div class="ask-chips" id="ask-when" role="radiogroup" aria-labelledby="ask-when-label">
+              <button type="button" role="radio" aria-checked="false" data-days="0">Today</button>
+              <button type="button" role="radio" aria-checked="false" data-days="3">In a few days</button>
+              <button type="button" role="radio" aria-checked="true" data-days="7" class="sel">This week</button>
+              <button type="button" role="radio" aria-checked="false" data-days="30">This month</button>
+              <button type="button" role="radio" aria-checked="false" data-days="90">No rush</button>
+            </div>
+          </div>
+
+          <p id="ask-error" class="form-error hidden" role="alert"></p>
+          <div class="ask-actions">
+            <button type="submit" class="btn-primary ask-go" id="ask-go">Decide now &rarr;</button>
+            <button type="button" class="ask-later" id="ask-later">Decide later</button>
+          </div>
+          <p class="muted ask-later-note">"Decide later" saves it to My tasks so you can come back to it.</p>
+        </form>
+
+        <div id="home-open"></div>
       </div>
 
       <!-- ---- INSIGHTS ---- -->
       <div id="view-insights" class="view hidden">
-        <div class="list-head"><h2>Your decision patterns</h2></div>
+        <div class="list-head">
+          <div>
+            <h2>Your insights</h2>
+            <p class="muted" id="insights-summary"></p>
+          </div>
+        </div>
         <div class="stat-grid" id="stat-grid"></div>
+
+        <!-- What the feedback loop has learned. Rendered from
+             /api/feedback/profile; the headline stays simple and the numbers
+             sit behind a "details" toggle. -->
+        <div class="card learn-card" id="learn-card"></div>
+
         <div class="two-col">
           <div class="card">
             <h3 class="card-title">Tasks by category</h3>
             <div id="category-bars" class="stack-sm"></div>
           </div>
           <div class="card">
-            <h3 class="card-title">How your survey shapes the ranking</h3>
+            <h3 class="card-title">How your answers shape your list</h3>
             <ul id="tips-list" class="tips"></ul>
           </div>
         </div>
+
+        <!-- The research-grade panels. Closed by default so a new user
+             meets a short page; everything is still one click away. -->
+        <details class="insights-more" id="insights-more">
+          <summary>
+            <span>Show the detailed analysis</span>
+            <em>Decision speed trends and the research behind your settings</em>
+          </summary>
 
         <!-- Decision tempo. Two trends from /api/insights/tempo: whether the
              time spent per decision is falling (getting faster) and whether
@@ -308,7 +314,7 @@
         <div class="card tempo-card">
           <div class="bs-card-head">
             <div>
-              <h3 class="card-title" style="margin-bottom:4px">Decision tempo</h3>
+              <h3 class="card-title" style="margin-bottom:4px">Decision speed</h3>
               <p class="muted">Are your decisions getting quicker - and are you
                 making more of them?</p>
             </div>
@@ -321,22 +327,19 @@
           <div id="tempo-body"></div>
         </div>
 
-        <!-- What the feedback loop has learned. Rendered from
-             /api/feedback/profile; empty until the user opts in. -->
-        <div class="card learn-card" id="learn-card"></div>
-
         <div class="card bs-card">
           <div class="bs-card-head">
             <div>
-              <h3 class="card-title" style="margin-bottom:4px">Behavioural science correlation</h3>
-              <p class="muted">Where your answers meet the research - and the engine
-                parameter each finding actually moved.</p>
+              <h3 class="card-title" style="margin-bottom:4px">The research behind your settings</h3>
+              <p class="muted">What studies say about the habits you described - and
+                the setting each one changed for you.</p>
             </div>
             <span class="tag">Evidence</span>
           </div>
           <div id="bs-params" class="bs-params"></div>
           <div id="bs-links" class="bs-links"></div>
         </div>
+        </details>
       </div>
 
       <!-- ---- HISTORY ---- -->
@@ -356,7 +359,7 @@
 
     </main>
 
-    <footer class="app-footer">decidewell · scoring engine + AVEX insights</footer>
+    <footer class="app-footer">decidewell · helping you make better decisions</footer>
 
     <!-- ============ AVEX ASSISTANT ============
          Lives inside #app-shell so it exists only for a signed-in user; the
@@ -437,8 +440,18 @@
     </div>
   </div>
 
+  <!-- info sheet: "About Us" and the full data-handling notice. Separate
+       from the decision workspace modal so it can open on the auth screen
+       without touching the decision state. -->
+  <div id="info-root" class="modal-backdrop info-backdrop hidden">
+    <div class="modal info-modal" role="dialog" aria-modal="true" aria-labelledby="info-title">
+      <button id="info-close" class="modal-close" aria-label="Close">&#x2715;</button>
+      <div id="info-body"></div>
+    </div>
+  </div>
+
   <div id="toast" class="toast hidden" role="status"></div>
 
-  <script type="module" src="/static/js/app.js?v=37"></script>
+  <script type="module" src="/static/js/app.js?v=41"></script>
 </body>
 </html>

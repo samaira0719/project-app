@@ -46,7 +46,7 @@ def _top(ranked: list, clarity: float, name: str | None) -> str:
     if not ranked:
         return (
             "Nothing pending right now, so there's nothing to rank. Add a task "
-            "on the Tasks tab and I'll tell you where it lands."
+            "under My tasks, or type a decision on the Decide screen, and I'll tell you where it lands."
         )
     top = ranked[0]
     who = _first_name(name)
@@ -173,7 +173,7 @@ MATRIX_HELP = (
 )
 
 SURVEY_HELP = (
-    "The Profile tab holds your decision-making survey, and it's what tunes "
+    "Profile (click your initials, top right) holds your decision-making survey, and it's what tunes "
     "the engine to you. Deadline-driven answers push urgency up, long-term "
     "goal answers push importance up, procrastination answers make stale tasks "
     "climb faster, and every support area you pick lifts that task category. "
@@ -182,16 +182,16 @@ SURVEY_HELP = (
 )
 
 ADD_HELP = (
-    "Tasks tab, the form on the left: title, type and a due date from the "
+    "My tasks, the form on the left: title, type and a due date from the "
     "calendar. Study tasks also want an estimated time, which feeds the effort "
     "factor. There's no edit-in-place yet, so to change a task, delete it with "
     "the bin icon and add it again."
 )
 
 COMPLETE_HELP = (
-    "The tick on the right of a task marks it done, and the bin deletes it. "
+    "The Done button on a task marks it finished, and Delete removes it. "
     "Done tasks drop out of the ranking, and you can see them again by "
-    "switching the filter from Pending to Done or All."
+    "switching the filter from To do to Done or All."
 )
 
 THEME_HELP = (
@@ -208,7 +208,7 @@ ACCOUNT_HELP = (
 )
 
 EXPLAIN_HELP = (
-    "Decide tab, the 'Explain with AVEX' button. It writes out why the order "
+    "My tasks, the 'Why this order?' button on the Start with this card. It writes out why the order "
     "is what it is and saves the run to History so you can look back at how "
     "your list stood on a given day."
 )

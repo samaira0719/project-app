@@ -82,22 +82,30 @@ CHAT_SYSTEM_INSTRUCTION = (
 
 APP_HELP = """PRODUCT REFERENCE - how Decide Well actually works.
 
-THE SCREENS (top nav, left to right)
-- Tasks: add a task on the left, see your tasks on the right. Two layouts,
-  List and Matrix, and three filters, Pending / Done / All. Each row shows its
-  rank (#1, #2...), category tag, due date and priority score. The tick button
-  marks it done, the bin deletes it. Clicking the task title opens its
-  decision workspace.
-- Decide: the Up Next card, which is the single task the engine says to start,
-  plus the full ranking with factor bars, and an "Explain with AVEX" button
-  that writes out why the order is what it is.
-- Insights: totals, completion rate, tasks by category, which survey answers
-  bent the engine, and the behavioural-science panel showing the published
-  finding behind each adjustment.
-- History: every saved "Explain" run, with the ranking as it stood at the time.
-- Profile: the decision-making survey. Retaking it updates the same answers
-  and re-tunes the engine.
-- Top right: light / dark / match-my-device theme, and Log out.
+THE SCREENS
+Top nav has two tabs, left to right:
+- Decide (the home screen): "What are you deciding?" Type the decision in
+  your own words, pick what it's about and when you need to decide, then
+  Start. That opens the step-by-step decision workspace (Options, What
+  matters, Answer). Below the question: "How did it go?" for past decisions
+  still waiting on a rating, and "Pick up where you left off" for decisions
+  started but not finished.
+- My tasks: add a task on the left, see your tasks on the right. The
+  "Start with this" card at the top is the #1 task, with Mark done, Decide and
+  a "Why this order?" button that writes out why the order is what it is.
+  Below it the rest of the list. Two layouts, List and Grid (urgent vs
+  important), and three filters, To do / Done / All. Each row shows its rank,
+  category, due date, the reason it sits there and its priority (out of 100),
+  plus labelled buttons: Decide, Done and Delete.
+Clicking your initials (top right) opens a menu with:
+- Insights: a short summary, how well AVEX knows you (level and progress),
+  tasks by category and how the survey answers shape the list. "Show the
+  detailed analysis" opens decision-speed trends and the research behind
+  each setting.
+- History: every saved "Why this order?" run, with the list as it stood then.
+- Profile: the decision-making survey, plus data and privacy controls.
+  Retaking the survey updates the same answers and re-tunes everything.
+Also top right: light / dark / match-my-device theme, and Log out.
 
 ADDING A TASK
 Title, Type (Study, Purchases, Travel, Entertainment, Personal, Career, Health,
@@ -122,7 +130,7 @@ wU, long-term-goal answers raise wC, procrastination signals raise wA, and
 Clarity is the gap between #1 and #2. A big gap means stop deliberating. A
 small one means the top two are genuinely close, so momentum is the tie-break.
 
-THE EISENHOWER MATRIX (Tasks, then Matrix)
+THE EISENHOWER MATRIX (My tasks, then Grid)
 Four quadrants built from the same U and C the ranking uses, so the grid and
 the list can never disagree: Do (urgent and important), Decide (important, not
 urgent yet), Delegate (urgent, not important, so batch it), Delete (neither).
@@ -130,7 +138,7 @@ Drag a task to another quadrant to pin it there. That moves placement only.
 The score, the rank and the factors stay exactly as the engine scored them,
 and a pinned task is marked as moved. Dragging it back releases the pin.
 
-PER-TASK DECISIONS (click a task title)
+PER-TASK DECISIONS (Decide home, or the Decide button on a task)
 List the options you are choosing between, keep or tune the suggested criteria
 (each weighted 1-5), and either rate every option yourself or let AVEX rate
 them. The engine scores each option with Simple Additive Weighting:
@@ -140,7 +148,7 @@ weights, with every boost reported as a note. The Audit panel re-derives the
 winner step by step so the answer can be checked rather than trusted. The
 chosen option then shows on the task in the list.
 
-THE SURVEY (Profile)
+THE SURVEY (Profile, in the menu under your initials)
 A branching questionnaire: basics, how you handle a full plate, decision style,
 what motivates you, what you struggle with, and a detail section for each area
 you ask for help with. It is what personalises every weight above. Retaking it
@@ -207,7 +215,7 @@ def build_user_context(
         lines.append(
             "They have NOT filled in the decision-making survey yet, so every "
             "weight is sitting at its default. Where it is relevant, mention "
-            "that taking it on the Profile tab tunes the ranking to them."
+            "that taking it under Profile (click their initials, top right) tunes the ranking to them."
         )
 
     lines.append("")
@@ -254,7 +262,7 @@ def build_user_context(
     else:
         lines.append(
             "PENDING TASKS: none. Their list is empty, so there is nothing to "
-            "rank yet. Adding one on the Tasks tab is the next step."
+            "rank yet. Typing a decision on the Decide screen, or adding a task under My tasks, is the next step."
         )
 
     if done_tasks:

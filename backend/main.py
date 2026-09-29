@@ -39,7 +39,12 @@ def create_app() -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:
-        return FileResponse(FRONTEND_DIR / "index.html")
+        # The shell page carries the versioned script tag, so a cached copy
+        # of it would keep loading an old app.js. Never let it be cached.
+        return FileResponse(
+            FRONTEND_DIR / "index.html",
+            headers={"Cache-Control": "no-store, must-revalidate"},
+        )
 
     @app.get("/health", include_in_schema=False)
     def health() -> dict:

@@ -23,14 +23,16 @@ class ConsentIn(BaseModel):
     """The consent block on the sign-up form (see privacy.py for the rules).
 
     `privacy` is the only mandatory box - it covers the processing the service
-    cannot exist without. The other two are separate, optional and default to
-    False, because a pre-ticked box is not consent and bundling an optional
-    purpose into a mandatory one voids both.
+    cannot exist without. `personalization` is a separate, optional box that
+    defaults to False, because a pre-ticked box is not consent.
+    `ai_processing` has no box of its own: it is disclosed in the full notice,
+    switched on with the account so AVEX works from the first decision, and
+    can be withdrawn at any time from the Profile tab.
     """
 
     privacy: bool = False
     personalization: bool = False
-    ai_processing: bool = False
+    ai_processing: bool = True
     age_confirmed: bool = False
     # Echoed back by the client from GET /api/privacy/notice, so the record
     # says which revision of the text was actually on screen.

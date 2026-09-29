@@ -40,12 +40,39 @@ from typing import Any
 
 TAGS = ("urgency", "importance", "interest", "effort", "cost", "quality", "other")
 
+# Two options are never shown with the same score, or with scores closer
+# than this. The raw SAW arithmetic decides the *order*; this only spreads
+# the displayed percentages so a ranking always reads as a ranking. The raw
+# value is kept alongside (`raw_score`) so the audit can show both.
+MIN_SCORE_GAP = 5.0
+
+
+def separate_scores(rows: list[dict[str, Any]], key: str = "score") -> list[dict[str, Any]]:
+    """Enforce MIN_SCORE_GAP between consecutive scores, top-down.
+
+    `rows` must already be sorted best-first. The leader keeps its raw score;
+    each following option is pushed down to at least MIN_SCORE_GAP below the
+    one above it (never below 0). Order is never changed, and every row gets
+    a `raw_score` recording what the arithmetic actually produced.
+    """
+    previous: float | None = None
+    for row in rows:
+        raw = float(row[key])
+        row["raw_score"] = round(raw, 1)
+        shown = raw
+        if previous is not None and shown > previous - MIN_SCORE_GAP:
+            shown = max(0.0, previous - MIN_SCORE_GAP)
+        row[key] = round(shown, 1)
+        row["separated"] = abs(shown - raw) > 1e-9
+        previous = row[key]
+    return rows
+
 # Suggested criteria per task category. Weights are starting points the
 # user can change; hints explain what a 5 means when rating options.
 CATEGORY_TEMPLATES: dict[str, dict[str, Any]] = {
     "Study": {
         "options_prompt": "Which subjects or topics are you choosing between?",
-        "options_placeholder": "e.g. Maths, Physics, DBMS",
+        "options_placeholder": "e.g. History, Mathematics, English",
         "criteria": [
             {"name": "Upcoming test or exam", "tag": "urgency", "weight": 5,
              "hint": "5 = a test on this is very soon"},
@@ -73,7 +100,7 @@ CATEGORY_TEMPLATES: dict[str, dict[str, Any]] = {
     },
     "Travel": {
         "options_prompt": "Which destinations or plans are you choosing between?",
-        "options_placeholder": "e.g. Goa, Manali, stay home",
+        "options_placeholder": "e.g. Delhi, Mumbai, Varanasi",
         "criteria": [
             {"name": "Cost fits budget", "tag": "cost", "weight": 5,
              "hint": "5 = comfortably affordable"},
@@ -224,7 +251,9 @@ def decide(
             for c in effective
         ) / total_weight
         scores.append({"option": option, "score": round(value * 100, 1)})
+    # Stable sort: a genuine tie keeps the order the options were entered in.
     scores.sort(key=lambda s: s["score"], reverse=True)
+    separate_scores(scores)
 
     best = scores[0]
     runner_up = scores[1] if len(scores) > 1 else None
@@ -282,6 +311,9 @@ METHOD = {
         "criteria measured in different units can be added at all.",
         "An option's score is the weighted sum of its values - a strong "
         "showing on a heavy criterion can compensate for a weak one elsewhere.",
+        "Displayed scores are then spread so no two options sit within 5 "
+        "points of each other. The order never changes; the raw sums are "
+        "kept and shown in the audit.",
     ],
     "assumptions": [
         "Preferential independence - how good an option is on one criterion "
@@ -352,6 +384,9 @@ def _contributions(
         parts.sort(key=lambda p: p["points"], reverse=True)
         rows.append({"option": option, "total": round(total, 1), "parts": parts})
     rows.sort(key=lambda r: r["total"], reverse=True)
+    # Same spread as decide(), so the audit's totals match the result screen.
+    # `raw_score` on each row is the unspread sum of its parts.
+    separate_scores(rows, key="total")
     return rows
 
 
@@ -487,8 +522,9 @@ def _robustness(
         # A dead heat. Saying a 0.0-point error would flip it is technically
         # true and completely useless; name the tie instead.
         verdict, headline = "tie", (
-            f"{winner} and {runner_up} score identically - this is a genuine "
-            "tie, and the order between them is arbitrary. Either add a "
+            f"{winner} and {runner_up} score identically on the raw arithmetic "
+            f"- the {MIN_SCORE_GAP:.0f}-point gap shown is only the display "
+            "spread, and the order between them is arbitrary. Either add a "
             "criterion that actually separates them, or take the one you "
             "would regret not taking and start."
         )
@@ -543,6 +579,7 @@ def build_audit(payload: dict[str, Any], result: dict[str, Any]) -> dict[str, An
     )
 
     gap = contributions[0]["total"] - contributions[1]["total"]
+    raw_gap = contributions[0]["raw_score"] - contributions[1]["raw_score"]
     top = contributions[0]
     decisive = top["parts"][0] if top["parts"] else None
 
@@ -559,6 +596,10 @@ def build_audit(payload: dict[str, Any], result: dict[str, Any]) -> dict[str, An
             "winner_score": top["total"],
             "runner_up_score": contributions[1]["total"],
             "gap_pts": round(gap, 1),
+            "raw_gap_pts": round(raw_gap, 1),
+            "raw_winner_score": top["raw_score"],
+            "raw_runner_up_score": contributions[1]["raw_score"],
+            "min_gap_pts": MIN_SCORE_GAP,
             "clarity_pct": round(result.get("clarity", 0.0) * 100, 1),
             "decisive_criterion": decisive["criterion"] if decisive else None,
             "decisive_share_pct": decisive["share_pct"] if decisive else None,

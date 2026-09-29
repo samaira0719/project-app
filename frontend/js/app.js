@@ -9,7 +9,7 @@ const $$ = (sel) => [...document.querySelectorAll(sel)];
 const state = {
   user: null,
   authMode: "login", // login | register
-  view: "tasks",
+  view: "decide",
   taskFilter: "pending",
   taskLayout: "list", // list | matrix (Eisenhower)
   quadrantTitles: {}, // key -> display name, cached from the matrix payload
@@ -19,10 +19,13 @@ const state = {
   taskIndex: {}, // id -> task, for opening the decision workspace
   // Data-protection notice, fetched once and rendered into the sign-up form.
   notice: null,
-  // What the sign-up checkboxes currently say. Every box starts false - a
+  // What the sign-up checkboxes currently say. Every *box* starts false - a
   // pre-ticked consent box is not consent, so the default has to be "no".
+  // AVEX (ai_processing) has no box of its own: the full notice discloses
+  // it, it is switched on with the account so explanations work from the
+  // first decision, and the Profile tab can turn it off at any time.
   consent: {
-    privacy: false, personalization: false, ai_processing: false,
+    privacy: false, personalization: false, ai_processing: true,
     age_confirmed: false,
   },
   learning: null, // cached /api/feedback/profile for the Insights tab
@@ -256,7 +259,7 @@ function renderConsent() {
     </div>
     <p class="consent-lead">${escapeHtml(notice.summary)}</p>
 
-    ${notice.scopes.map(consentScopeRow).join("")}
+    ${notice.scopes.filter((scope) => scope.at_signup !== false).map(consentScopeRow).join("")}
 
     <label class="consent-row consent-age">
       <input type="checkbox" data-consent="age_confirmed" data-required="1" />
@@ -274,22 +277,7 @@ function renderConsent() {
     </label>
 
     <button type="button" class="consent-more consent-more--all" id="consent-full"
-            aria-expanded="false">Read how we handle your data</button>
-    <div class="consent-detail-wrap hidden" id="consent-full-body">
-      <div class="consent-detail">
-        ${notice.practices.map((practice) => `
-          <p class="consent-practice">
-            <strong>${escapeHtml(practice.title)}.</strong>
-            ${escapeHtml(practice.body)}
-          </p>`).join("")}
-        <p class="consent-practice"><strong>Your rights.</strong> All of these
-          work today, from inside the app:</p>
-        <ul class="consent-collects">
-          ${notice.rights.map((right) => `
-            <li><strong>${escapeHtml(right.right)}</strong> - ${escapeHtml(right.how)}</li>`).join("")}
-        </ul>
-      </div>
-    </div>`;
+            aria-haspopup="dialog">Read how we handle your data</button>`;
 
   // Re-apply whatever was already ticked, so switching between login and
   // sign-up does not silently drop the user's answers.
@@ -317,16 +305,161 @@ function bindConsent() {
     const trigger = event.target.closest(".consent-more");
     if (!trigger) return;
     const key = trigger.dataset.more;
-    const panel = key
-      ? root.querySelector(`[data-detail="${key}"]`)
-      : $("#consent-full-body");
+    if (!key) {
+      // The full notice is a document, not a disclosure row: it opens as
+      // one sheet with everything in it rather than unfolding in place.
+      openNoticeModal();
+      return;
+    }
+    const panel = root.querySelector(`[data-detail="${key}"]`);
     if (!panel) return;
     const open = panel.classList.toggle("hidden");
     trigger.setAttribute("aria-expanded", String(!open));
-    trigger.textContent = open
-      ? (key ? "What this means" : "Read how we handle your data")
-      : "Hide";
+    trigger.textContent = open ? "What this means" : "Hide";
   });
+}
+
+/* ================= info sheet (About Us, full data notice) =================
+   One lightweight modal for the two documents a visitor can read before an
+   account exists. It is separate from the decision workspace modal so that
+   opening it never touches the decision state. */
+
+function openInfoModal(html) {
+  $("#info-body").innerHTML = html;
+  $("#info-root").classList.remove("hidden");
+  $("#info-root .info-modal").scrollTop = 0;
+  $("#info-close").focus();
+}
+
+function closeInfoModal() {
+  $("#info-root").classList.add("hidden");
+}
+
+function infoIsOpen() {
+  return !$("#info-root").classList.contains("hidden");
+}
+
+function aboutHtml() {
+  return `
+    <div class="info-doc">
+      <span class="dec-kicker">ABOUT DECIDE WELL</span>
+      <h2 id="info-title" class="info-title">A decision-making companion for students</h2>
+      <p class="info-lead">Decide Well ranks what's on your plate with real math,
+        then explains why.</p>
+
+      <h3>What it does</h3>
+      <ul class="info-list">
+        <li><strong>Ranks your tasks.</strong> Add what you have to do and when it is
+          due. The engine scores every task on urgency, importance, effort and how
+          long it has been waiting, and puts the one to start now at the top.</li>
+        <li><strong>Compares your options.</strong> Stuck between choices - which subject
+          to study, which laptop to buy, where to go? List the options, rate them on
+          the things that matter to you, and get a clear winner with a score.</li>
+        <li><strong>Explains itself.</strong> Every recommendation shows the arithmetic
+          behind it. AVEX, the built-in assistant, writes the explanation in plain
+          words, and an audit panel lets you check how the answer could change.</li>
+        <li><strong>Learns you.</strong> A short survey tunes the engine to how you
+          decide. If you choose, it also learns from how your decisions turn out.</li>
+      </ul>
+
+      <h3>How to use it</h3>
+      <ol class="info-list">
+        <li>Create an account and answer the short decision-making survey.</li>
+        <li>Add your tasks with their deadlines.</li>
+        <li>Open the Decide tab to see what to start, or open a task to compare options.</li>
+        <li>Tell the app how it went - it gets better at ranking for you.</li>
+      </ol>
+
+      <h3>About this project</h3>
+      <p>Decide Well - Student Decision Lab is a personal student project. It is
+        an educational tool for organising work and thinking decisions through.
+        It is not professional advice, and it is not affiliated with any school,
+        university or technology company.</p>
+      <p class="info-foot">Your data stays private. Read how we handle it from the
+        sign-up form, or manage it any time from the Profile tab.</p>
+    </div>`;
+}
+
+function noticeScopeHtml(scope) {
+  const flag = scope.required ? "Required"
+    : scope.at_signup === false ? "On by default" : "Optional";
+  return `
+    <section class="info-scope">
+      <h4>
+        <span>${escapeHtml(scope.title)}</span>
+        <em class="consent-flag">${flag}</em>
+      </h4>
+      <p>${escapeHtml(scope.summary || "")}</p>
+      <p>${escapeHtml(scope.purpose || "")}</p>
+      <p class="info-sub">What it covers</p>
+      <ul class="info-list">${(scope.collects || []).map((c) => `<li>${escapeHtml(c)}</li>`).join("")}</ul>
+      <dl class="consent-facts info-facts">
+        <dt>Legal basis</dt><dd>${escapeHtml(scope.legal_basis || "-")}</dd>
+        ${scope.recipients ? `<dt>Who else sees it</dt><dd>${escapeHtml(scope.recipients)}</dd>` : ""}
+        <dt>How long we keep it</dt><dd>${escapeHtml(scope.retention || "-")}</dd>
+        <dt>${scope.required ? "Why it is required" : "If you say no"}</dt>
+        <dd>${escapeHtml(scope.if_declined || "-")}</dd>
+        ${scope.withdrawal ? `<dt>Changing your mind</dt><dd>${escapeHtml(scope.withdrawal)}</dd>` : ""}
+      </dl>
+    </section>`;
+}
+
+function noticeHtml(notice) {
+  const project = notice.project || {};
+  return `
+    <div class="info-doc">
+      <span class="dec-kicker">HOW WE HANDLE YOUR DATA</span>
+      <h2 id="info-title" class="info-title">Data protection &amp; consent notice</h2>
+      <p class="info-meta">Notice v${escapeHtml(notice.version)}</p>
+      <p class="info-lead">${escapeHtml(notice.summary)}</p>
+
+      ${project.lines ? `
+        <h3>${escapeHtml(project.title || "About this project")}</h3>
+        ${project.lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("")}` : ""}
+
+      <h3>What we collect and why</h3>
+      ${(notice.scopes || []).map(noticeScopeHtml).join("")}
+
+      <h3>Age</h3>
+      <p>${escapeHtml(notice.age_notice)}</p>
+
+      <h3>How we protect it</h3>
+      ${(notice.practices || []).map((practice) => `
+        <p><strong>${escapeHtml(practice.title)}.</strong> ${escapeHtml(practice.body)}</p>`).join("")}
+
+      <h3>Your rights</h3>
+      <p>All of these work today, from inside the app:</p>
+      <ul class="info-list">
+        ${(notice.rights || []).map((right) => `
+          <li><strong>${escapeHtml(right.right)}</strong> - ${escapeHtml(right.how)}
+            <em class="info-where">${escapeHtml(right.where)}</em></li>`).join("")}
+      </ul>
+
+      ${project.testing ? `
+        <h3>${escapeHtml(project.testing_title || "If you are helping us test")}</h3>
+        <ul class="info-list">
+          ${project.testing.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
+        </ul>` : ""}
+
+      <h3>Your consent</h3>
+      <p>Ticking the boxes on the sign-up form records your agreement to this
+        notice, at the version shown above. The optional learning purpose stays
+        off unless you tick it. AVEX (Google Gemini) explanations are on when the
+        account is created and can be switched off from the Profile tab at any
+        time; withdrawing takes effect immediately. Every grant and withdrawal is
+        kept in your consent history so you can see exactly what was agreed and when.</p>
+    </div>`;
+}
+
+async function openNoticeModal() {
+  if (!state.notice) {
+    try { state.notice = await api.privacyNotice(); } catch { state.notice = null; }
+  }
+  if (!state.notice) {
+    toast("Could not load the privacy notice. Please try again.");
+    return;
+  }
+  openInfoModal(noticeHtml(state.notice));
 }
 
 async function loadNotice() {
@@ -437,471 +570,39 @@ async function enterApp() {
   // Restore this user's assistant thread, if the tab still has one.
   chatLoad();
 
-  // New users take the survey first; returning users land on the dashboard.
-  setView(state.user.has_survey ? "tasks" : "survey");
+  // New users take the survey first; returning users land on the
+  // "What are you deciding?" home.
+  setView(state.user.has_survey ? "decide" : "survey");
 }
 
 function setView(view) {
   state.view = view;
-  $$("#app-nav button").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
+  $$("#app-nav button, #user-menu-list button").forEach((b) =>
+    b.classList.toggle("active", b.dataset.view === view));
+  // The avatar stands in for the views tucked into its menu.
+  $("#user-avatar").classList.toggle("active", !!$(`#user-menu-list [data-view="${view}"]`));
+  closeUserMenu();
   $$(".view").forEach((v) => v.classList.add("hidden"));
   $(`#view-${view}`).classList.remove("hidden");
-  ({ tasks: renderTasks, decide: renderDecide, insights: renderInsights,
+  ({ tasks: renderTasks, decide: renderHome, insights: renderInsights,
      history: renderHistory, survey: renderSurvey })[view]();
 }
 
+function openUserMenu() {
+  $("#user-menu-list").classList.remove("hidden");
+  $("#user-avatar").setAttribute("aria-expanded", "true");
+}
+
+function closeUserMenu() {
+  $("#user-menu-list").classList.add("hidden");
+  $("#user-avatar").setAttribute("aria-expanded", "false");
+}
+
+function userMenuIsOpen() {
+  return !$("#user-menu-list").classList.contains("hidden");
+}
+
 /* ================= tasks ================= */
-
-function syncCategoryFields() {
-  const category = $("#task-category").value;
-  $("#study-fields").classList.toggle("hidden", category !== "Study");
-  // Travel is planned by the day - no timestamp needed on its due date.
-  duePickerSetMode(category === "Travel" ? "date" : "datetime");
-}
-
-/* ============== due-date picker ==============
-   A hand-rolled calendar. The native datetime-local popup is a different
-   widget in every browser - cramped, unthemeable, and it pairs the month grid
-   with a scrolling column of numbers that reads as noise. This renders a
-   normal month: weekday header, six fixed rows so the panel never jumps, a
-   month/year jump screen, and a separate time row. The chosen value is
-   written back into the hidden #task-due input as "YYYY-MM-DDTHH:mm"
-   (or "YYYY-MM-DD" in date-only mode), exactly what the form read before. */
-
-const DP_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const DP_MONTHS = ["January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"];
-const DP_PRESETS = [
-  { label: "9 AM", h: 9, m: 0 },
-  { label: "Noon", h: 12, m: 0 },
-  { label: "6 PM", h: 18, m: 0 },
-  { label: "11:59 PM", h: 23, m: 59 },
-];
-
-const dp = {
-  mode: "datetime",  // datetime | date
-  date: null,        // selected day, midnight-local, or null
-  hour: 18,
-  minute: 0,
-  cursor: startOfMonth(new Date()),
-  screen: "days",    // days | months
-  open: false,
-};
-
-function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
-function sameDay(a, b) {
-  return !!a && !!b && a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-function pad2(n) { return String(n).padStart(2, "0"); }
-
-/* 12-hour clock parts for the time row. */
-function dpClock() {
-  const h24 = dp.hour;
-  return { h12: h24 % 12 === 0 ? 12 : h24 % 12, ampm: h24 < 12 ? "AM" : "PM" };
-}
-
-function duePickerSetMode(mode) {
-  if (dp.mode === mode) return;
-  dp.mode = mode;
-  duePickerClear();
-}
-
-function duePickerClear() {
-  dp.date = null;
-  dp.hour = 18;
-  dp.minute = 0;
-  dp.cursor = startOfMonth(new Date());
-  dpCommit();
-  if (dp.open) dpRender(".dp-day.dp-today, .dp-title");
-}
-
-/* Push the current selection into the hidden input + the trigger label. */
-function dpCommit() {
-  const input = $("#task-due");
-  const display = $("#task-due-display");
-  if (!dp.date) {
-    input.value = "";
-    display.textContent = dp.mode === "date" ? "Pick a day" : "Pick a date and time";
-    display.classList.add("dp-empty");
-    return;
-  }
-  const d = dp.date;
-  const ymd = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-  input.value = dp.mode === "date" ? ymd : `${ymd}T${pad2(dp.hour)}:${pad2(dp.minute)}`;
-  display.classList.remove("dp-empty");
-  // The year is only worth the width when it isn't the current one - without
-  // this the label outgrows the sidebar field and ellipsises mid-time.
-  const opts = { weekday: "short", day: "numeric", month: "short" };
-  if (d.getFullYear() !== new Date().getFullYear()) opts.year = "numeric";
-  let text = d.toLocaleDateString(undefined, opts);
-  if (dp.mode !== "date") {
-    const { h12, ampm } = dpClock();
-    text += ` \u00b7 ${h12}:${pad2(dp.minute)} ${ampm}`;
-  }
-  display.textContent = text;
-  $("#task-due-trigger").classList.remove("invalid");
-}
-
-function dpDayCells() {
-  const first = dp.cursor;
-  const start = new Date(first);
-  start.setDate(1 - first.getDay());          // back up to the Sunday
-  return Array.from({ length: 42 }, (_, i) => {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    return d;
-  });
-}
-
-function dpRenderDays() {
-  const today = new Date();
-  const month = dp.cursor.getMonth();
-  const head = DP_WEEKDAYS
-    .map((w) => `<span class="dp-wd">${w.slice(0, 2)}</span>`)
-    .join("");
-  const cells = dpDayCells().map((d) => {
-    const cls = ["dp-day"];
-    if (d.getMonth() !== month) cls.push("dp-out");
-    if (sameDay(d, today)) cls.push("dp-today");
-    if (sameDay(d, dp.date)) cls.push("dp-sel");
-    const iso = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-    const label = d.toLocaleDateString(undefined,
-      { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-    return `<button type="button" class="${cls.join(" ")}" data-day="${iso}"
-      aria-label="${label}"${sameDay(d, dp.date) ? ' aria-current="date"' : ""}
-      tabindex="-1">${d.getDate()}</button>`;
-  }).join("");
-  return `<div class="dp-cal">
-      <div class="dp-weekdays" aria-hidden="true">${head}</div>
-      <div class="dp-grid">${cells}</div>
-    </div>`;
-}
-
-function dpRenderMonths() {
-  const year = dp.cursor.getFullYear();
-  const now = new Date();
-  const cells = DP_MONTHS.map((name, i) => {
-    const cls = ["dp-month"];
-    if (i === dp.cursor.getMonth()) cls.push("dp-sel");
-    if (i === now.getMonth() && year === now.getFullYear()) cls.push("dp-today");
-    return `<button type="button" class="${cls.join(" ")}" data-month="${i}"
-      aria-label="${name} ${year}">${name.slice(0, 3)}</button>`;
-  }).join("");
-  return `<div class="dp-months">${cells}</div>`;
-}
-
-function dpRenderTime() {
-  if (dp.mode === "date") return "";
-  const { h12, ampm } = dpClock();
-  const hours = Array.from({ length: 12 }, (_, i) => i + 1)
-    .map((h) => `<option value="${h}"${h === h12 ? " selected" : ""}>${h}</option>`).join("");
-  const mins = Array.from({ length: 12 }, (_, i) => i * 5)
-    .map((m) => `<option value="${m}"${m === dp.minute ? " selected" : ""}>${pad2(m)}</option>`)
-    .join("");
-  // A minute set by a preset (11:59) is not on the 5-minute grid.
-  const odd = dp.minute % 5
-    ? `<option value="${dp.minute}" selected>${pad2(dp.minute)}</option>` : "";
-  const presets = DP_PRESETS.map((preset) => {
-    const on = preset.h === dp.hour && preset.m === dp.minute;
-    return `<button type="button" class="dp-preset${on ? " on" : ""}"
-      data-h="${preset.h}" data-m="${preset.m}">${preset.label}</button>`;
-  }).join("");
-  return `<div class="dp-time">
-      <span class="dp-time-label">Time</span>
-      <div class="dp-time-controls">
-        <select class="dp-h" aria-label="Hour">${hours}</select>
-        <span class="dp-colon">:</span>
-        <select class="dp-m" aria-label="Minute">${mins}${odd}</select>
-        <div class="dp-ampm" role="group" aria-label="AM or PM">
-          <button type="button" data-ampm="AM" class="${ampm === "AM" ? "on" : ""}">AM</button>
-          <button type="button" data-ampm="PM" class="${ampm === "PM" ? "on" : ""}">PM</button>
-        </div>
-      </div>
-      <div class="dp-presets">${presets}</div>
-    </div>`;
-}
-
-function dpRender(focusSel) {
-  const pop = $("#task-due-pop");
-  const months = dp.screen === "months";
-  const title = months
-    ? dp.cursor.getFullYear()
-    : `${DP_MONTHS[dp.cursor.getMonth()]} ${dp.cursor.getFullYear()}`;
-  pop.innerHTML = `
-    <div class="dp-head">
-      <button type="button" class="dp-nav" data-step="-1"
-        aria-label="${months ? "Previous year" : "Previous month"}">&#8249;</button>
-      <button type="button" class="dp-title" data-screen aria-live="polite">
-        ${title}<span class="dp-caret" aria-hidden="true">${months ? "&#9650;" : "&#9660;"}</span>
-      </button>
-      <button type="button" class="dp-nav" data-step="1"
-        aria-label="${months ? "Next year" : "Next month"}">&#8250;</button>
-    </div>
-    <div class="dp-body">
-      ${months ? dpRenderMonths() : dpRenderDays()}
-      ${months ? "" : dpRenderTime()}
-    </div>
-    <div class="dp-foot">
-      <button type="button" class="dp-link" data-act="clear">Clear</button>
-      <button type="button" class="dp-link" data-act="today">Today</button>
-      <button type="button" class="dp-done" data-act="done">Done</button>
-    </div>`;
-  // Re-rendering drops whatever had focus; hand it back to the equivalent
-  // control so the keyboard flow survives.
-  if (focusSel) pop.querySelector(focusSel)?.focus();
-  if (dp.open) dpPlace();
-}
-
-function dpOpen() {
-  if (dp.open) return;
-  dp.open = true;
-  dp.screen = "days";
-  dp.cursor = startOfMonth(dp.date || new Date());
-  $("#task-due-pop").classList.remove("hidden");
-  $("#task-due-trigger").setAttribute("aria-expanded", "true");
-  dpRender(".dp-day.dp-sel, .dp-day.dp-today");
-  dpPlace();
-}
-
-/* Pin the panel to the viewport next to the field: below it by default, above
-   it when there is more room there, and never taller than the space it has.
-   Anything that doesn't fit scrolls inside .dp-body, so the month header and
-   the footer buttons stay on screen even on a short window. */
-const DP_GAP = 8;    // breathing room between the field and the panel
-const DP_EDGE = 10;  // keep this far clear of the window edges
-// Below this there isn't room for the header, four week rows and the footer,
-// and squeezing the panel in beside the field starts to cover it.
-const DP_COMFORT = 300;
-// Narrower than this there is no room to stand the time controls beside the
-// calendar, so the panel stays stacked and scrolls instead.
-const DP_WIDE_MIN = 720;
-
-function dpPlace() {
-  const pop = $("#task-due-pop");
-  // Under 560px the panel is a bottom sheet positioned entirely by CSS.
-  if (window.matchMedia("(max-width: 560px)").matches) {
-    pop.style.cssText = "";
-    pop.classList.remove("dp-center");
-    return;
-  }
-  const r = $("#task-due-trigger").getBoundingClientRect();
-  const below = window.innerHeight - r.bottom - DP_GAP - DP_EDGE;
-  const above = r.top - DP_GAP - DP_EDGE;
-  const centred = window.innerHeight - DP_EDGE * 2;
-  // Round up: the panel's real height isn't a whole number, and measuring low
-  // here clips the last week row by a pixel or two.
-  const measure = () => Math.ceil(pop.getBoundingClientRect().height);
-
-  pop.style.maxHeight = "none";
-  pop.classList.remove("dp-wide");
-  let wanted = measure();
-  // Stacked, the calendar and the time controls make a panel too tall for a
-  // half-height window. Standing them side by side is ~130px shorter, which is
-  // usually the difference between sitting beside the field and covering it.
-  if (wanted > Math.max(above, below) && window.innerWidth >= DP_WIDE_MIN) {
-    pop.classList.add("dp-wide");
-    wanted = measure();
-  }
-  const fitsBelow = wanted <= below;
-  const fitsAbove = wanted <= above;
-
-  // Beside the field when the whole panel fits there. Otherwise centre it like
-  // a dialog if that shows the full month, or if both sides are so short that
-  // anchoring would leave a two-row sliver - covering the field beats that.
-  if (!fitsBelow && !fitsAbove &&
-      (wanted <= centred || Math.max(above, below) < DP_COMFORT)) {
-    pop.classList.add("dp-center");
-    pop.style.top = "";
-    pop.style.left = "";
-    pop.style.maxHeight = `${centred}px`;
-    return;
-  }
-  pop.classList.remove("dp-center");
-  const up = !fitsBelow && (fitsAbove || above > below);
-  const height = Math.min(wanted, up ? above : below);
-  pop.style.maxHeight = `${height}px`;
-  pop.style.top = up
-    ? `${Math.max(DP_EDGE, r.top - DP_GAP - height)}px`
-    : `${Math.min(r.bottom + DP_GAP, Math.max(DP_EDGE, window.innerHeight - height - DP_EDGE))}px`;
-  pop.style.left =
-    `${Math.max(DP_EDGE, Math.min(r.left, window.innerWidth - pop.offsetWidth - DP_EDGE))}px`;
-}
-
-function dpClose({ focus = false } = {}) {
-  if (!dp.open) return;
-  dp.open = false;
-  $("#task-due-pop").classList.add("hidden");
-  $("#task-due-trigger").setAttribute("aria-expanded", "false");
-  if (focus) $("#task-due-trigger").focus();
-}
-
-/* Arrow keys walk the grid; the month follows the selection across edges. */
-function dpMoveSelection(days) {
-  const from = dp.date || new Date();
-  const next = new Date(from.getFullYear(), from.getMonth(), from.getDate() + days);
-  dp.date = next;
-  dp.cursor = startOfMonth(next);
-  dpCommit();
-  dpRender(".dp-day.dp-sel");
-}
-
-function dpHandleClick(e) {
-  // The re-renders below detach e.target, which would make the document-level
-  // "clicked outside?" test read the click as outside and close the panel.
-  e.dpInside = true;
-  const nav = e.target.closest(".dp-nav");
-  if (nav) {
-    const step = Number(nav.dataset.step);
-    dp.cursor = dp.screen === "months"
-      ? new Date(dp.cursor.getFullYear() + step, dp.cursor.getMonth(), 1)
-      : new Date(dp.cursor.getFullYear(), dp.cursor.getMonth() + step, 1);
-    dpRender(`.dp-nav[data-step="${step}"]`);
-    return;
-  }
-  if (e.target.closest(".dp-title")) {
-    dp.screen = dp.screen === "months" ? "days" : "months";
-    dpRender(".dp-title");
-    return;
-  }
-  const month = e.target.closest(".dp-month");
-  if (month) {
-    dp.cursor = new Date(dp.cursor.getFullYear(), Number(month.dataset.month), 1);
-    dp.screen = "days";
-    dpRender(".dp-day.dp-sel, .dp-day.dp-today, .dp-title");
-    return;
-  }
-  const day = e.target.closest(".dp-day");
-  if (day) {
-    const [y, m, d] = day.dataset.day.split("-").map(Number);
-    dp.date = new Date(y, m - 1, d);
-    dp.cursor = startOfMonth(dp.date);
-    dpCommit();
-    // Date-only mode has nothing left to choose, so get out of the way.
-    if (dp.mode === "date") { dpClose({ focus: true }); return; }
-    dpRender(".dp-day.dp-sel");
-    return;
-  }
-  const preset = e.target.closest(".dp-preset");
-  if (preset) {
-    dp.hour = Number(preset.dataset.h);
-    dp.minute = Number(preset.dataset.m);
-    if (!dp.date) dp.date = dpToday();
-    dpCommit();
-    dpRender(`.dp-preset[data-h="${dp.hour}"][data-m="${dp.minute}"]`);
-    return;
-  }
-  const ampm = e.target.closest("[data-ampm]");
-  if (ampm) {
-    const want = ampm.dataset.ampm;
-    if (want !== dpClock().ampm) dp.hour = (dp.hour + 12) % 24;
-    if (dp.date) dpCommit();
-    dpRender(`[data-ampm="${want}"]`);
-    return;
-  }
-  const act = e.target.closest("[data-act]")?.dataset.act;
-  if (act === "clear") { duePickerClear(); return; }
-  if (act === "today") {
-    dp.date = dpToday();
-    dp.cursor = startOfMonth(dp.date);
-    dp.screen = "days";
-    dpCommit();
-    if (dp.mode === "date") { dpClose({ focus: true }); return; }
-    dpRender(".dp-day.dp-sel");
-    return;
-  }
-  if (act === "done") dpClose({ focus: true });
-}
-
-function dpToday() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-}
-
-function dpHandleChange(e) {
-  if (e.target.matches(".dp-h")) {
-    const h12 = Number(e.target.value) % 12;
-    dp.hour = dpClock().ampm === "PM" ? h12 + 12 : h12;
-  } else if (e.target.matches(".dp-m")) {
-    dp.minute = Number(e.target.value);
-  } else return;
-  if (!dp.date) dp.date = dpToday();
-  dpCommit();
-}
-
-function bindDuePicker() {
-  const pop = $("#task-due-pop");
-  // The form sits in .task-form-col, which is position:sticky - and a sticky
-  // element creates a stacking context, trapping the panel underneath the
-  // app header no matter how high its z-index goes. It is position:fixed and
-  // placed by script anyway, so it lives on <body> instead.
-  document.body.appendChild(pop);
-  $("#task-due-trigger").addEventListener("click", () => (dp.open ? dpClose() : dpOpen()));
-  pop.addEventListener("click", dpHandleClick);
-  pop.addEventListener("change", dpHandleChange);
-  document.addEventListener("click", (e) => {
-    if (dp.open && !e.dpInside &&
-        !e.target.closest("#task-due-picker, #task-due-pop")) dpClose();
-  });
-  // The form sits in a sticky column, so the field moves as the page scrolls.
-  // Capture phase, so scrolling inside .dp-body is caught too and ignored.
-  window.addEventListener("scroll", (e) => {
-    if (!dp.open) return;
-    if (e.target instanceof Element && e.target.closest("#task-due-pop")) return;
-    dpPlace();
-  }, true);
-  window.addEventListener("resize", () => { if (dp.open) dpPlace(); });
-  // On the document, not the field: the panel is no longer a descendant of it.
-  document.addEventListener("keydown", (e) => {
-    if (!dp.open || !e.target.closest?.("#task-due-picker, #task-due-pop")) return;
-    if (e.key === "Escape") {
-      e.stopPropagation();          // don't also close the decision modal
-      dpClose({ focus: true });
-      return;
-    }
-    if (dp.screen !== "days" || e.target.closest("select")) return;
-    const steps = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
-    if (e.key in steps) { e.preventDefault(); dpMoveSelection(steps[e.key]); }
-  });
-  dpCommit();
-}
-
-async function handleTaskSubmit(event) {
-  event.preventDefault();
-  const errorEl = $("#task-error");
-  errorEl.classList.add("hidden");
-  const category = $("#task-category").value;
-  if (!$("#task-due").value) {
-    errorEl.textContent = "Please pick a due date.";
-    errorEl.classList.remove("hidden");
-    $("#task-due-trigger").classList.add("invalid");
-    $("#task-due-trigger").focus();
-    return;
-  }
-  const dueRaw = $("#task-due").value;
-  // Date-only (Travel): treat as end of that day so urgency isn't inflated.
-  const due = dueRaw.includes("T") ? new Date(dueRaw) : new Date(`${dueRaw}T23:59`);
-  const payload = {
-    title: $("#task-title").value,
-    category,
-    due_date: due.toISOString(),
-  };
-  if (category === "Study") {
-    payload.estimated_minutes = parseInt($("#task-estimate").value, 10) || null;
-  }
-  try {
-    await api.createTask(payload);
-    $("#task-form").reset();
-    $("#task-estimate").value = 60;
-    duePickerClear();
-    syncCategoryFields();
-    toast("Task added - ranking updated");
-    renderTasks();
-  } catch (err) {
-    errorEl.textContent = err.message;
-    errorEl.classList.remove("hidden");
-  }
-}
 
 function taskMeta(task) {
   const bits = [
@@ -916,16 +617,32 @@ function taskMeta(task) {
   return bits.join(" <span aria-hidden='true'>·</span> ");
 }
 
+/** Every action carries a visible word, not just an icon - the bare tick
+    and bin read as decoration to a lot of first-time users. */
 function taskActions(task) {
+  const decide = task.status === "pending"
+    ? `<button class="task-btn task-btn-decide" data-act="decide" data-id="${task.id}">
+        ${task.decided_option ? "See decision" : "Decide"} <span aria-hidden="true">&rarr;</span></button>`
+    : "";
   const primary = task.status === "pending"
-    ? `<button class="icon-btn" data-act="complete" data-id="${task.id}" title="Mark done" aria-label="Mark done">${ICONS.check}</button>`
-    : `<button class="icon-btn" data-act="reopen" data-id="${task.id}" title="Reopen" aria-label="Reopen">${ICONS.undo}</button>`;
-  return `<div class="task-actions">${primary}
-    <button class="icon-btn danger" data-act="delete" data-id="${task.id}" title="Delete" aria-label="Delete">${ICONS.trash}</button></div>`;
+    ? `<button class="task-btn" data-act="complete" data-id="${task.id}" title="Mark this task as done">${ICONS.check}<span>Done</span></button>`
+    : `<button class="task-btn" data-act="reopen" data-id="${task.id}" title="Move it back to your to-do list">${ICONS.undo}<span>Reopen</span></button>`;
+  return `<div class="task-actions">${decide}${primary}
+    <button class="task-btn danger" data-act="delete" data-id="${task.id}" title="Delete this task">${ICONS.trash}<span>Delete</span></button></div>`;
 }
 
-function emptyState(title, hint) {
-  return `<div class="empty"><strong>${title}</strong>${hint}</div>`;
+/** The priority number, labelled, so "68%" is not left to guesswork. */
+function scoreChip(score) {
+  return `<div class="score-chip ${scoreClass(score)}"
+      title="Priority: how much this needs your attention right now, out of 100">
+      <small>Priority</small>${score.toFixed(0)}</div>`;
+}
+
+/** An empty list with one clear next step. `action` is optional:
+    { label, act } renders a button handled by the view's click handler. */
+function emptyState(title, hint, action) {
+  return `<div class="empty"><strong>${title}</strong>${hint}${action ? `
+    <button type="button" class="btn-dark empty-btn" data-act="${action.act}">${action.label}</button>` : ""}</div>`;
 }
 
 /* ---- Eisenhower matrix ----
@@ -1153,19 +870,19 @@ function renderMatrix(data) {
   const cells = Object.fromEntries(
     (data.matrix || []).map((q) => [q.key, matrixCell(q, byId)]));
   if (!data.tasks.length) {
-    return emptyState("Nothing to place",
-      "Add a task on the left and it lands in a quadrant instantly.");
+    return emptyState("Nothing to place yet",
+      "Add something on the home page and it lands in the right box straight away.",
+      { label: "Add your first task", act: "focus-add" });
   }
   const moved = data.tasks.filter((t) => t.quadrant_overridden).length;
   return `
     <div class="eis">
-      <h3 class="eis-title">The Eisenhower Decision Matrix</h3>
+      <h3 class="eis-title">Urgent vs important</h3>
       <p class="eis-legend">
-        Urgent means the deadline is inside 48 hours (or the time left barely
-        covers the estimate). Important is the category's weight in your profile.
-        <strong>Drag any task into another quadrant</strong> when you know
-        something the engine doesn't - that moves where it sits, never what it
-        scores.${moved ? ` You have moved ${moved} task${moved > 1 ? "s" : ""};
+        Urgent means it's due within about two days. Important comes from what
+        you told us matters to you.
+        <strong>Drag a task to another box</strong> if you know better - that
+        changes where it sits, not its priority number.${moved ? ` You have moved ${moved} task${moved > 1 ? "s" : ""};
         each one carries a ↺ to hand it back.` : ""}
       </p>
       <div class="eis-grid">
@@ -1199,6 +916,11 @@ async function renderTasks() {
   $("#task-filter").classList.toggle("hidden", isMatrix);
   list.classList.toggle("hidden", isMatrix);
   matrix.classList.toggle("hidden", !isMatrix);
+  // "Start with this" only makes sense above the ranked to-do list.
+  if (isMatrix || state.taskFilter !== "pending") {
+    $("#up-next").innerHTML = "";
+    $("#insight-panel").classList.add("hidden");
+  }
 
   if (isMatrix) {
     matrix.innerHTML = `<div class="empty">Loading...</div>`;
@@ -1218,17 +940,25 @@ async function renderTasks() {
     if (state.taskFilter === "pending") {
       const data = await api.prioritized();
       data.tasks.forEach((t) => { state.taskIndex[t.id] = t; });
-      html = data.tasks.map((t) => `
-        <div class="task-item clickable ${t.rank === 1 ? "top" : ""}" data-open="${t.id}" title="Open decision workspace">
-          <div class="rank-badge">#${t.rank}</div>
+      $("#up-next").innerHTML = upNextHtml(data);
+      // #1 is already the big card above, so the list carries on from #2.
+      const rest = data.tasks.slice(1);
+      html = rest.length ? `<h3 class="list-subhead">Then</h3>` + rest.map((t) => `
+        <div class="task-item clickable" data-open="${t.id}">
+          <div class="rank-badge" title="Place in your to-do order">#${t.rank}</div>
           <div class="task-main">
             <div class="task-title">${escapeHtml(t.title)}</div>
             <div class="task-meta">${taskMeta(t)}</div>
+            <div class="task-reason">${escapeHtml(t.reason)}</div>
           </div>
-          <div class="score-chip ${scoreClass(t.score)}">${t.score.toFixed(0)}%</div>
+          ${scoreChip(t.score)}
           ${taskActions(t)}
-        </div>`).join("");
-      if (!html) html = emptyState("Nothing on your plate", "Add a task on the left - the engine ranks it instantly.");
+        </div>`).join("") : "";
+      if (!data.tasks.length) {
+        html = emptyState("Nothing on your list",
+          "Add something on the home page and we'll put it in order for you.",
+          { label: "Add your first task", act: "focus-add" });
+      }
     } else {
       const tasks = await api.listTasks(state.taskFilter);
       tasks.forEach((t) => { state.taskIndex[t.id] = t; });
@@ -1241,7 +971,7 @@ async function renderTasks() {
           </div>
           ${taskActions(t)}
         </div>`).join("");
-      if (!html) html = emptyState("Nothing here yet", "Completed tasks will show up in this list.");
+      if (!html) html = emptyState("Nothing here yet", "Tasks you finish will show up in this list.");
     }
     list.innerHTML = html;
   } catch (err) {
@@ -1264,10 +994,18 @@ async function handleTaskAction(event) {
   }
   event.stopPropagation();
   const { act, id } = btn.dataset;
+  if (act === "decide") {
+    const task = state.taskIndex[id];
+    if (task) openDecision(task);
+    return;
+  }
+  if (act === "explain") { handleExplain(); return; }
+  // New tasks come in through the home form ("Decide now" / "Decide later").
+  if (act === "focus-add") { setView("decide"); $("#ask-title").focus(); return; }
   try {
     if (act === "reset-quadrant") {
       await api.setQuadrant(id, null);
-      toast("Handed back to the engine");
+      toast("Moved back to its original box");
     }
     if (act === "complete") { await api.completeTask(id); toast("Done. Nice work."); }
     if (act === "reopen") { await api.reopenTask(id); toast("Task reopened"); }
@@ -1277,7 +1015,7 @@ async function handleTaskAction(event) {
       toast("Task deleted");
     }
     if (state.view === "tasks") renderTasks();
-    if (state.view === "decide") renderDecide();
+    if (state.view === "decide") renderHome();
   } catch (err) {
     toast(err.message);
   }
@@ -1285,76 +1023,208 @@ async function handleTaskAction(event) {
 
 /* ================= decide ================= */
 
-const FACTOR_LABELS = { urgency: "Urgency", importance: "Importance", effort: "Effort", aging: "Aging" };
-
-function factorBars(factors) {
-  return `<div class="factor-bars">` + Object.entries(FACTOR_LABELS).map(([key, label]) => `
-    <div class="fbar">${label} ${(factors[key] * 100).toFixed(0)}%
-      <div class="track"><div class="fill" style="width:${Math.min(factors[key] * 100, 100)}%"></div></div>
-    </div>`).join("") + `</div>`;
-}
-
 function scoreRing(score) {
   const R = 52, C = 2 * Math.PI * R;
   const offset = C * (1 - Math.min(score, 100) / 100);
   return `
-  <div class="ring" role="img" aria-label="Priority score ${score.toFixed(0)} percent">
+  <div class="ring" role="img" aria-label="Priority ${score.toFixed(0)} out of 100">
     <svg width="120" height="120" viewBox="0 0 120 120">
       <circle class="bg" cx="60" cy="60" r="${R}" stroke-width="9" fill="none"/>
       <circle class="fg" cx="60" cy="60" r="${R}" stroke-width="9" fill="none"
         stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"/>
     </svg>
-    <span class="val">${score.toFixed(0)}%</span>
+    <span class="val">${score.toFixed(0)}<small>priority</small></span>
   </div>`;
 }
 
-async function renderDecide() {
-  const hero = $("#up-next");
-  const list = $("#decide-list");
-  hero.innerHTML = "";
-  list.innerHTML = `<div class="empty">Loading...</div>`;
-  try {
-    const data = await api.prioritized();
-    if (!data.tasks.length) {
-      list.innerHTML = emptyState("Nothing to decide", "Add tasks first - then Decide Well tells you what to start.");
-      return;
-    }
-    const [top, ...rest] = data.tasks;
-    data.tasks.forEach((t) => { state.taskIndex[t.id] = t; });
-    const pct = Math.round(data.clarity * 100);
-    hero.innerHTML = `
-      <div class="up-next clickable" data-open="${top.id}" title="Open decision workspace">
-        ${scoreRing(top.score)}
-        <div>
-          <div class="up-next-kicker">UP NEXT ${top.decided_option ? `· DECIDED: ${escapeHtml(top.decided_option.toUpperCase())}` : ""}</div>
-          <div class="up-next-title">${escapeHtml(top.title)}</div>
-          <div class="up-next-meta">${taskMeta(top)}</div>
-          <div class="up-next-reason">${escapeHtml(top.reason)}</div>
-        </div>
-        <button class="btn-done" data-act="complete" data-id="${top.id}">Mark done</button>
+/** The "Start with this" card at the top of My tasks: the #1 task, the
+    reason it leads, and the actions a user most often wants on it. */
+function upNextHtml(data) {
+  const [top] = data.tasks;
+  if (!top) return "";
+  const pct = Math.round(data.clarity * 100);
+  const many = data.tasks.length > 1;
+  return `
+    <div class="up-next clickable" data-open="${top.id}">
+      ${scoreRing(top.score)}
+      <div>
+        <div class="up-next-kicker">START WITH THIS${top.decided_option
+          ? ` · YOU CHOSE: ${escapeHtml(top.decided_option.toUpperCase())}` : ""}</div>
+        <div class="up-next-title">${escapeHtml(top.title)}</div>
+        <div class="up-next-meta">${taskMeta(top)}</div>
+        <div class="up-next-reason">${escapeHtml(top.reason)}</div>
+        ${many ? `<div class="up-next-clarity">${pct >= 25
+          ? "A clear lead over the next task."
+          : "Close to the next task - either is a fine place to start."}</div>` : ""}
       </div>
-      <p class="clarity-note">${
-        pct >= 25
-          ? `Clear call - the top task leads the runner-up by ${pct}%.`
-          : `Close call - the top two are within ${pct}% of each other. Momentum breaks the tie.`
-      }</p>`;
+      <div class="up-next-actions">
+        <button class="btn-done" data-act="complete" data-id="${top.id}">Mark done</button>
+        <button class="up-next-btn" data-act="decide" data-id="${top.id}">
+          ${top.decided_option ? "See decision" : "Decide"} &rarr;</button>
+        ${many ? `<button class="up-next-btn" id="explain-btn" data-act="explain">Why this order?</button>` : ""}
+      </div>
+    </div>`;
+}
 
-    list.innerHTML = rest.map((t) => `
-      <div class="task-item clickable" data-open="${t.id}" style="align-items:flex-start" title="Open decision workspace">
-        <div class="rank-badge">#${t.rank}</div>
-        <div class="task-main">
-          <div class="task-title">${escapeHtml(t.title)}</div>
-          <div class="task-meta">${taskMeta(t)}</div>
-          ${factorBars(t.factors)}
-          <div class="reason">${escapeHtml(t.reason)}</div>
-        </div>
-        <div class="score-chip ${scoreClass(t.score)}">${t.score.toFixed(0)}%</div>
-        ${taskActions(t)}
-      </div>`).join("") ||
-      `<p class="clarity-note">That's your only pending task - no competition today.</p>`;
+/* ================= decide (home) =================
+   The front door. One question in the user's own words, two taps of
+   context, and the decision workspace opens on a task created for it -
+   nobody has to understand "tasks" before they can get help deciding. */
+
+const home = { category: null, days: 7 };
+
+/** Pick one chip in a radiogroup and mirror it in aria-checked. */
+function selectChip(group, btn) {
+  group.querySelectorAll("button").forEach((b) => {
+    const on = b === btn;
+    b.classList.toggle("sel", on);
+    b.setAttribute("aria-checked", on ? "true" : "false");
+  });
+}
+
+function agoLabel(hours) {
+  if (hours < 1) return "just now";
+  if (hours < 24) return `${Math.round(hours)}h ago`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? "yesterday" : `${days} days ago`;
+}
+
+async function renderHome() {
+  $("#setup-banner").innerHTML = state.user.has_survey ? "" : `
+    <div class="setup-banner">
+      <div>
+        <strong>Finish setting up - about 3 minutes</strong>
+        <span>A few questions about how you decide, so the suggestions fit you.</span>
+      </div>
+      <button type="button" class="btn-dark" data-go="survey">Answer the questions</button>
+    </div>`;
+
+  const box = $("#home-open");
+  try {
+    const [tasks, pending] = await Promise.all([
+      api.listTasks(""),
+      api.pendingFeedback().catch(() => ({ items: [] })),
+    ]);
+    tasks.forEach((t) => { state.taskIndex[t.id] = t; });
+    const unfinished = tasks
+      .filter((t) => t.status === "pending" && !t.decided_option)
+      .slice(0, 4);
+    const toRate = (pending.items || [])
+      .filter((item) => state.taskIndex[item.task_id])
+      .slice(0, 3);
+
+    box.innerHTML = `
+      ${toRate.length ? `
+        <section class="home-section">
+          <h3 class="home-head">How did it go?</h3>
+          <p class="muted home-sub">Telling us how a decision worked out helps AVEX give you better suggestions.</p>
+          <div class="stack">
+            ${toRate.map((item) => `
+              <div class="task-item home-item">
+                <div class="task-main">
+                  <div class="task-title">You chose <strong>${escapeHtml(item.best || "an option")}</strong></div>
+                  <div class="task-meta">${escapeHtml(item.title)} <span aria-hidden="true">·</span> ${agoLabel(item.hours_ago)}</div>
+                </div>
+                <button class="task-btn task-btn-decide" data-act="decide" data-id="${item.task_id}">Rate it &rarr;</button>
+              </div>`).join("")}
+          </div>
+        </section>` : ""}
+      ${unfinished.length ? `
+        <section class="home-section">
+          <h3 class="home-head">Pick up where you left off</h3>
+          <div class="stack">
+            ${unfinished.map((t) => `
+              <div class="task-item home-item">
+                <div class="task-main">
+                  <div class="task-title">${escapeHtml(t.title)}</div>
+                  <div class="task-meta">${taskMeta(t)}</div>
+                </div>
+                <button class="task-btn task-btn-decide" data-act="decide" data-id="${t.id}">Continue &rarr;</button>
+              </div>`).join("")}
+          </div>
+          <button type="button" class="link-btn" data-go="tasks">See all my tasks &rarr;</button>
+        </section>` : ""}`;
   } catch (err) {
-    list.innerHTML = `<div class="empty">${escapeHtml(err.message)}</div>`;
+    box.innerHTML = `<div class="empty">${escapeHtml(err.message)}</div>`;
   }
+}
+
+/* "Decide now" (the form submit) opens the workspace straight away.
+   "Decide later" creates the same task but leaves it in My tasks - it shows
+   up under "Pick up where you left off" and in the Tasks list until decided. */
+async function handleAskSubmit(event, later = false) {
+  event.preventDefault();
+  const errorEl = $("#ask-error");
+  const fail = (message, focusEl) => {
+    errorEl.textContent = message;
+    errorEl.classList.remove("hidden");
+    focusEl?.focus();
+  };
+  errorEl.classList.add("hidden");
+
+  const title = $("#ask-title").value.trim();
+  if (!title) return fail("First, tell us what you're deciding.", $("#ask-title"));
+  if (!home.category) {
+    return fail("Pick what it's about - it decides which questions come next.",
+      $("#ask-category button"));
+  }
+
+  // "Today" means the end of today; anything else is that many days out,
+  // also at the end of the day, so urgency isn't inflated by the clock time.
+  const due = new Date();
+  due.setDate(due.getDate() + home.days);
+  due.setHours(23, 59, 0, 0);
+
+  const btn = later ? $("#ask-later") : $("#ask-go");
+  const label = btn.innerHTML;
+  $("#ask-go").disabled = $("#ask-later").disabled = true;
+  btn.innerHTML = `<span class="spin"></span> ${later ? "Saving..." : "Setting up..."}`;
+  try {
+    const task = await api.createTask({
+      title, category: home.category, due_date: due.toISOString(),
+    });
+    state.taskIndex[task.id] = task;
+    $("#ask-title").value = "";
+    home.category = null;
+    selectChip($("#ask-category"), null);
+    if (later) {
+      toast("Saved to My tasks - decide it whenever you're ready.");
+      renderHome();
+    } else {
+      openDecision(task);
+    }
+  } catch (err) {
+    fail(err.message);
+  } finally {
+    $("#ask-go").disabled = $("#ask-later").disabled = false;
+    btn.innerHTML = label;
+  }
+}
+
+function bindHome() {
+  $("#ask-form").addEventListener("submit", (e) => handleAskSubmit(e));
+  $("#ask-later").addEventListener("click", (e) => handleAskSubmit(e, true));
+  $("#ask-category").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-cat]");
+    if (!btn) return;
+    home.category = btn.dataset.cat;
+    selectChip($("#ask-category"), btn);
+  });
+  $("#ask-when").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-days]");
+    if (!btn) return;
+    home.days = parseInt(btn.dataset.days, 10);
+    selectChip($("#ask-when"), btn);
+  });
+  $("#view-decide").addEventListener("click", (e) => {
+    const go = e.target.closest("[data-go]");
+    if (go) { setView(go.dataset.go); return; }
+    const btn = e.target.closest("button[data-act='decide']");
+    if (btn) {
+      const task = state.taskIndex[btn.dataset.id];
+      if (task) openDecision(task);
+    }
+  });
 }
 
 async function handleExplain() {
@@ -1371,7 +1241,7 @@ async function handleExplain() {
     toast(err.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = `Explain with ${AI_NAME}`;
+    btn.textContent = "Why this order?";
   }
 }
 
@@ -1380,7 +1250,7 @@ async function handleExplain() {
 function surveyTips(answers) {
   const tips = [];
   if (!answers) {
-    return ["Take the survey (Profile tab) to personalize how urgency, importance and effort are weighted."];
+    return [];
   }
   if (answers.motivator === "A deadline" || answers.motivator === "Fear of falling behind" ||
       answers.many_tasks === "Do the most urgent") {
@@ -1412,18 +1282,33 @@ function surveyTips(answers) {
   return tips.slice(0, 6);
 }
 
+/** Shown wherever the survey is still missing. A button, not directions -
+    the old "Profile tab" no longer exists as a tab. */
+function surveyCta() {
+  return `<li class="tips-cta">
+      Answer a few questions about how you decide and this fills in.
+      <button type="button" class="btn-dark" data-go="survey">Answer the questions</button>
+    </li>`;
+}
+
 async function renderInsights() {
   const grid = $("#stat-grid");
   grid.innerHTML = "";
   try {
     const s = await api.stats();
+    const done = s.total_tasks - s.pending;
     const tiles = [
-      { val: s.pending, lbl: "Pending", pct: s.total_tasks ? s.pending / s.total_tasks : 0 },
-      { val: `${Math.round(s.completion_rate * 100)}%`, lbl: "Completed", pct: s.completion_rate },
-      { val: `${s.avg_score.toFixed(0)}%`, lbl: "Avg priority", pct: s.avg_score / 100 },
-      { val: s.overdue, lbl: "Overdue", pct: s.pending ? s.overdue / s.pending : 0 },
+      { val: s.pending, lbl: "To do", pct: s.total_tasks ? s.pending / s.total_tasks : 0 },
+      { val: done, lbl: "Done", pct: s.completion_rate },
       { val: s.due_this_week, lbl: "Due this week", pct: s.pending ? s.due_this_week / s.pending : 0 },
+      { val: s.overdue, lbl: "Overdue", pct: s.pending ? s.overdue / s.pending : 0 },
     ];
+    $("#insights-summary").textContent = !s.total_tasks
+      ? "Nothing to show yet - make a decision or add a task and this page fills in."
+      : s.overdue
+        ? `You have ${s.pending} thing${s.pending === 1 ? "" : "s"} to do, and ${s.overdue} ${s.overdue === 1 ? "is" : "are"} overdue.`
+        : `You have ${s.pending} thing${s.pending === 1 ? "" : "s"} to do${
+            done ? ` and you've finished ${done}` : ""}. Nothing is overdue.`;
     grid.innerHTML = tiles.map((t) => `
       <div class="stat-tile"><div class="val">${t.val}</div><div class="lbl">${t.lbl}</div>
         <div class="bar"><i style="width:${Math.min(t.pct * 100, 100)}%"></i></div>
@@ -1436,10 +1321,12 @@ async function renderInsights() {
         <div class="cat-row"><span class="name">${cat}</span>
           <div class="track"><div class="fill" style="width:${(count / max) * 100}%"></div></div>
           <strong>${count}</strong>
-        </div>`).join("") || `<p class="muted">No tasks yet.</p>`;
+        </div>`).join("") || `<p class="muted">Nothing yet - it fills in as you add things.</p>`;
 
-    $("#tips-list").innerHTML = surveyTips(state.surveyAnswers)
-      .map((t) => `<li>${escapeHtml(t)}</li>`).join("");
+    $("#tips-list").innerHTML = state.surveyAnswers
+      ? surveyTips(state.surveyAnswers).map((t) => `<li>${escapeHtml(t)}</li>`).join("") ||
+        `<li>Your answers keep the standard settings - nothing needed adjusting.</li>`
+      : surveyCta();
   } catch (err) {
     grid.innerHTML = `<div class="empty">${escapeHtml(err.message)}</div>`;
   }
@@ -1511,25 +1398,29 @@ async function renderLearning() {
     card.innerHTML = `
       <div class="bs-card-head">
         <div>
-          <h3 class="card-title" style="margin-bottom:4px">Learning from your decisions</h3>
-          <p class="muted">Switched off for this account.</p>
+          <h3 class="card-title" style="margin-bottom:4px">How well AVEX knows you</h3>
+          <p class="muted">Learning is switched off for this account.</p>
         </div>
         <span class="tag">Off</span>
       </div>
       <p class="muted">Nothing about how your decisions turn out is being
-        recorded, and the engine runs on your survey profile alone. You can
-        turn this on under Profile, in Data &amp; privacy - and turn it back
-        off, with everything erased, at any time.</p>`;
+        recorded, so suggestions are based on your survey answers alone. You
+        can turn learning on under Profile (click your initials, top right) -
+        and turn it back off, with everything erased, at any time.</p>`;
     return;
   }
 
   const moved = [...p.tags, ...p.factors].filter((row) => row.moved);
 
+  // The headline is one sentence and a progress bar; every number the loop
+  // keeps is still here, one click down, under "See the details".
   card.innerHTML = `
     <div class="bs-card-head">
       <div>
-        <h3 class="card-title" style="margin-bottom:4px">What the engine has learned about you</h3>
-        <p class="muted">${escapeHtml(p.blurb)}</p>
+        <h3 class="card-title" style="margin-bottom:4px">How well AVEX knows you</h3>
+        <p class="muted">${p.events
+          ? `AVEX has learned from ${p.events} thing${p.events === 1 ? "" : "s"} you've done.`
+          : "AVEX is still getting to know you."}</p>
       </div>
       <span class="level-chip">
         <span class="level-dots">${levelDots(p.level, p.max_level)}</span>
@@ -1541,29 +1432,34 @@ async function renderLearning() {
       <div class="learn-progress-track">
         <div class="learn-progress-fill" style="width:${Math.min(100, p.progress_pct)}%"></div>
       </div>
-      <p class="muted">
+      <p class="learn-next">
         ${p.to_next
-          ? `${p.to_next} more learning event${p.to_next === 1 ? "" : "s"} to level ${p.level + 1}.`
-          : "Top level reached."}
-        Right now ${p.trust_pct.toFixed(0)}% of what has been learned is applied
-        to your scores - the rest is held back until there is enough evidence
-        behind it.
+          ? `Make or rate ${p.to_next} more decision${p.to_next === 1 ? "" : "s"} to reach level ${p.level + 1}.`
+          : "Top level reached - AVEX knows your style well."}
       </p>
     </div>
 
+    <details class="learn-more">
+    <summary>See the details</summary>
+    <p class="muted">
+      ${escapeHtml(p.blurb)} Right now ${p.trust_pct.toFixed(0)}% of what has
+      been learned is used in your suggestions - the rest is held back until
+      there is enough evidence behind it.
+    </p>
+
     <div class="learn-stats">
-      ${learnStat(`${p.events}`, "learning events", "Every action the loop scored.")}
+      ${learnStat(`${p.events}`, "things learned from", "Every decision, rating or change AVEX learned from.")}
       ${learnStat(`${p.rated_decisions}`, "decisions rated", "Decisions you gave an explicit verdict on.")}
       ${learnStat(
         p.avg_satisfaction_pct == null ? "-" : `${p.avg_satisfaction_pct.toFixed(0)}%`,
         "average satisfaction", "Your own average across every rating you have given.")}
       ${learnStat(
         p.follow_rate_pct == null ? "-" : `${p.follow_rate_pct.toFixed(0)}%`,
-        "you follow the call", "How often you go with the recommendation.")}
+        "you go with the suggestion", "How often you go with the recommendation.")}
       ${learnStat(
         `${p.calibration_bias_pts >= 0 ? "+" : ""}${p.calibration_bias_pts.toFixed(0)}`,
-        "calibration (pts)",
-        "How far the satisfaction prediction has run low (+) or high (-). Corrected for automatically.")}
+        "prediction offset",
+        "How far the happiness prediction has run low (+) or high (-). Corrected for automatically.")}
     </div>
 
     ${moved.length ? `
@@ -1574,8 +1470,8 @@ async function renderLearning() {
         </div>
         ${moved.map(learnRow).join("")}
       </div>` : `
-      <p class="muted">No weight has moved yet. Rate a few decisions and the
-        criteria that keep working for you will start to count for more.</p>`}
+      <p class="muted">Nothing has changed yet. Rate a few decisions and the
+        things that keep working for you will start to count for more.</p>`}
 
     <details class="learn-method">
       <summary>How the learning works</summary>
@@ -1592,6 +1488,7 @@ async function renderLearning() {
               </strong>
             </div>`).join("")}
         </div>` : ""}
+    </details>
     </details>`;
 }
 
@@ -1713,7 +1610,7 @@ async function handlePrivacyAction(event) {
   }
 
   if (action === "erase") {
-    if (!confirm("Erase everything the engine has learned about you? Your "
+    if (!confirm("Erase everything AVEX has learned about you? Your "
       + "account, tasks and decisions stay; only the learning history goes. "
       + "This cannot be undone.")) return;
     const result = await api.eraseLearning();
@@ -2069,8 +1966,8 @@ async function renderBehavioral() {
       <div class="bs-params-head">
         <h4>What your answers actually changed</h4>
         <span class="muted">${moved.length
-          ? `${moved.length} of ${data.parameters.length} engine parameters moved`
-          : "Every parameter is at its default"}</span>
+          ? `${moved.length} of ${data.parameters.length} settings changed`
+          : "Every setting is at its default"}</span>
       </div>
       <div class="bs-param-rows">
         ${data.parameters.map((p) => `
@@ -2098,7 +1995,7 @@ async function renderBehavioral() {
 
     links.innerHTML = bsList(
       data.correlations,
-      "Take the survey on the Profile tab and this fills in - every finding below is matched to something you actually told us.",
+      "Answer the survey (Profile, under your initials at the top right) and this fills in - every finding below is matched to something you actually told us.",
     );
   } catch (err) {
     links.innerHTML = `<p class="muted">${escapeHtml(err.message)}</p>`;
@@ -2174,6 +2071,27 @@ function questionVisible(question, draft) {
   return conditionMet(question.depends_on, draft);
 }
 
+/* A saved profile can predate the current spec: questions that were since
+   removed, or a question that was single-choice when it was answered and is
+   multi-choice now (social_challenge). Bring the copy the wizard edits in
+   line with the spec so every control renders from the shape it expects;
+   the server drops retired keys on submit regardless. */
+function normaliseDraft(spec, answers) {
+  const byKey = {};
+  spec.forEach((section) => section.questions.forEach((q) => { byKey[q.key] = q; }));
+  const draft = {};
+  Object.entries(JSON.parse(JSON.stringify(answers || {}))).forEach(([key, value]) => {
+    const question = byKey[key];
+    if (!question) return; // retired question - nothing reads it any more
+    if (question.type === "multi" && typeof value === "string") value = [value];
+    if (question.type === "number" && typeof value === "number") {
+      value = Math.min(question.max, Math.max(question.min, value));
+    }
+    draft[key] = value;
+  });
+  return draft;
+}
+
 function questionAnswered(question, draft) {
   const value = draft[question.key];
   if (question.type === "multi") return Array.isArray(value) && value.length > 0;
@@ -2233,7 +2151,7 @@ function renderSurvey() {
 
   // Prefill from saved answers when editing an existing profile.
   if (state.surveyAnswers && !wiz.started) {
-    wiz.draft = JSON.parse(JSON.stringify(state.surveyAnswers));
+    wiz.draft = normaliseDraft(spec, state.surveyAnswers);
   }
 
   if (!wiz.started) {
@@ -2241,7 +2159,7 @@ function renderSurvey() {
     root.innerHTML = `
       <div class="survey-welcome">
         <div class="eyebrow">DECISION-MAKING SURVEY</div>
-        <h2>${retaking ? "Update your decision profile" : `Hey ${escapeHtml(state.user.name.split(" ")[0])}, let's tune the engine to you`}</h2>
+        <h2>${retaking ? "Update your decision profile" : `Hey ${escapeHtml(state.user.name.split(" ")[0])}, let's get to know how you decide`}</h2>
         <p>Four short sections about how you decide - then you pick the areas you
            want help with, and you only answer the deep-dives for those.
            Your answers directly change how your tasks get ranked.</p>
@@ -2380,8 +2298,8 @@ function bindWizardEvents(section, visibleQuestions, sections) {
       state.surveyAnswers = saved.answers;
       state.user.has_survey = true;
       wiz.started = false;
-      toast("Profile saved - your ranking is now personalized");
-      setView("tasks");
+      toast("Saved - suggestions are now tuned to you");
+      setView("decide");
     } catch (error) {
       err.textContent = error.message;
       err.classList.remove("hidden");
@@ -2396,7 +2314,7 @@ function bindWizardEvents(section, visibleQuestions, sections) {
 const dec = {
   task: null, template: null,
   options: [], criteria: [], ratings: {}, context: "",
-  stage: "setup", // setup | rate | result
+  stage: "options", // options | criteria | rate | result
   result: null,
   // Deliberation clock, feeding the tempo trend on the Insights tab.
   // performance.now() rather than Date.now(), so a system clock change or an
@@ -2443,14 +2361,18 @@ function decElapsedSeconds() {
 
 function openModal() { $("#modal-root").classList.remove("hidden"); }
 function closeModal() {
+  const wasOpen = !$("#modal-root").classList.contains("hidden");
   $("#modal-root").classList.add("hidden");
   dec.task = null;
   dec.timing = false;   // the clock has nothing left to time
+  // Whatever happened inside (a decision, or a half-finished one) should show
+  // on the page underneath straight away.
+  if (wasOpen && state.user) refreshAfterDecision();
 }
 
 async function openDecision(task) {
   dec.task = task;
-  dec.stage = "setup";
+  dec.stage = "options";
   dec.result = null;
   decClockReset();
   openModal();
@@ -2470,7 +2392,9 @@ async function openDecision(task) {
       dec.stage = "result";
     } else {
       dec.options = [];
-      dec.criteria = template.criteria.map((c) => ({ ...c }));
+      // No suggested importance: the user picks 1-5 for every row themselves,
+      // so the weights are theirs rather than a default they never looked at.
+      dec.criteria = template.criteria.map((c) => ({ ...c, weight: null }));
       dec.ratings = {};
       dec.context = "";
     }
@@ -2480,29 +2404,56 @@ async function openDecision(task) {
   }
 }
 
+/* The workspace is a short wizard. Step 1 ("What") is the task itself -
+   typed on the home screen, or already there when opened from My tasks - so
+   the workspace always opens on step 2. */
+const DEC_STEPS = ["What", "Options", "What matters", "Answer"];
+const DEC_STEP_OF = { options: 1, criteria: 2, rate: 2, result: 3 };
+
+function decSteps() {
+  const current = DEC_STEP_OF[dec.stage] ?? 1;
+  return `
+    <ol class="dec-steps" aria-label="Step ${current + 1} of ${DEC_STEPS.length}">
+      ${DEC_STEPS.map((label, i) => `
+        <li class="${i < current ? "done" : ""}${i === current ? " on" : ""}"
+            ${i === current ? 'aria-current="step"' : ""}>
+          <span>${i < current ? "&#10003;" : i + 1}</span>${label}
+        </li>`).join("")}
+    </ol>`;
+}
+
 function decHeader(subtitle) {
   return `
-    <div class="dec-kicker">DECIDE · ${escapeHtml(dec.task.category.toUpperCase())}</div>
+    ${decSteps()}
+    <div class="dec-kicker">${escapeHtml(dec.task.category.toUpperCase())}</div>
     <div class="dec-title">${escapeHtml(dec.task.title)}</div>
     <div class="dec-sub">${subtitle}</div>`;
 }
 
 function renderDecision() {
-  if (dec.stage === "setup") renderDecSetup();
+  if (dec.stage === "options") renderDecOptions();
+  else if (dec.stage === "criteria") renderDecCriteria();
   else if (dec.stage === "rate") renderDecRate();
   else renderDecResult();
+  $("#modal-body").closest(".modal").scrollTop = 0;
 }
 
-/* ---- stage 1: options + criteria ---- */
+function decError(message) {
+  const err = $("#dec-err");
+  err.textContent = message;
+  err.classList.remove("hidden");
+}
 
-function renderDecSetup() {
+/* ---- step 2: the options ---- */
+
+function renderDecOptions() {
   const t = dec.template;
   $("#modal-body").innerHTML = `
-    ${decHeader(`List the options and what matters - ${AI_NAME} rates them for you and the engine calls it.`)}
+    ${decHeader("List the choices you're stuck between.")}
 
     <div class="dec-section">
       <div class="dec-label">${escapeHtml(t.options_prompt)}</div>
-      <div class="dec-help">Add 2-8 options.</div>
+      <div class="dec-help">Add at least 2 (up to 8). Press Enter after each one.</div>
       <div class="opt-chips">
         ${dec.options.map((o, i) => `
           <span class="opt-chip">${escapeHtml(o)}
@@ -2511,35 +2462,96 @@ function renderDecSetup() {
       </div>
       <div class="add-row">
         <input id="dec-opt-input" type="text" maxlength="80"
+          aria-label="Add an option"
           placeholder="${escapeHtml(t.options_placeholder || "Add an option")}" />
         <button type="button" class="btn-dark" id="dec-opt-add">Add</button>
       </div>
     </div>
 
+    <div class="dec-nav">
+      <button class="ghost-btn" id="dec-cancel">Cancel</button>
+      <span class="wiz-err hidden" id="dec-err"></span>
+      <span class="spacer"></span>
+      <button class="btn-primary" id="dec-next">Next: what matters &rarr;</button>
+    </div>`;
+
+  const input = $("#dec-opt-input");
+  const addOption = () => {
+    const value = input.value.trim();
+    if (!value) return false;
+    if (dec.options.some((o) => o.toLowerCase() === value.toLowerCase())) {
+      toast("That option is already added"); return false;
+    }
+    if (dec.options.length >= 8) { toast("Maximum 8 options"); return false; }
+    dec.options.push(value);
+    return true;
+  };
+  $("#dec-opt-add").addEventListener("click", () => {
+    if (addOption()) { renderDecOptions(); $("#dec-opt-input").focus(); }
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (addOption()) { renderDecOptions(); $("#dec-opt-input").focus(); }
+  });
+  $("#modal-body").querySelectorAll("[data-rm-opt]").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      dec.options.splice(parseInt(btn.dataset.rmOpt, 10), 1);
+      renderDecOptions();
+    }));
+
+  $("#dec-cancel").addEventListener("click", closeModal);
+  $("#dec-next").addEventListener("click", () => {
+    // Text still sitting in the box counts - people type the last option
+    // and go straight for Next.
+    addOption();
+    if (dec.options.length < 2) {
+      renderDecOptions();
+      decError("Add at least two options to compare.");
+      $("#dec-opt-input").focus();
+      return;
+    }
+    dec.stage = "criteria";
+    renderDecision();
+  });
+  if (!dec.options.length) input.focus();
+}
+
+/* ---- step 3: what matters ---- */
+
+function renderDecCriteria() {
+  const t = dec.template;
+  $("#modal-body").innerHTML = `
+    ${decHeader(`Comparing ${dec.options.map((o) => `<strong>${escapeHtml(o)}</strong>`).join(", ")}.`)}
+
     <div class="dec-section">
-      <div class="dec-label">What matters for this decision?</div>
-      <div class="dec-help">Suggested for ${escapeHtml(dec.task.category)} - tune how much each counts (1-5), remove what doesn't apply, or add your own.</div>
+      <div class="dec-label">How much does each of these matter to you?</div>
+      <div class="dec-help">We've suggested a few for ${escapeHtml(dec.task.category)}.
+        <strong>1 = matters a little, 5 = matters a lot.</strong>
+        Remove any that don't fit, or add your own.</div>
       ${dec.criteria.map((c, i) => `
         <div class="crit-row">
           <span class="crit-name">${escapeHtml(c.name)}
-            ${c.hint ? `<span class="hint">${escapeHtml(c.hint)}</span>` : ""}</span>
-          <span class="dots" data-crit="${i}">
+            ${c.hint ? `<span class="hint">${escapeHtml(c.hint)}</span>` : ""}
+            ${c.weight == null ? `<span class="crit-need">Please select</span>` : ""}</span>
+          <span class="dots" data-crit="${i}" role="group" aria-label="How much ${escapeHtml(c.name)} matters">
             ${[1, 2, 3, 4, 5].map((n) =>
-              `<button data-w="${n}" class="${c.weight === n ? "sel" : ""}">${n}</button>`).join("")}
+              `<button data-w="${n}" class="${c.weight === n ? "sel" : ""}" aria-pressed="${c.weight === n}">${n}</button>`).join("")}
           </span>
-          <button class="crit-remove" data-rm-crit="${i}" aria-label="Remove criterion">✕</button>
+          <button class="crit-remove" data-rm-crit="${i}" title="Remove" aria-label="Remove ${escapeHtml(c.name)}">✕</button>
         </div>`).join("")}
       <div class="add-row" style="margin-top:10px">
-        <input id="dec-crit-input" type="text" maxlength="60" placeholder="Add your own criterion" />
+        <input id="dec-crit-input" type="text" maxlength="60" aria-label="Add something that matters"
+          placeholder="Add something else that matters" />
         <button type="button" class="btn-dark" id="dec-crit-add">Add</button>
       </div>
     </div>
 
     <div class="dec-section">
-      <div class="dec-label">Anything ${AI_NAME} should know? <span class="opt-tag">optional</span></div>
-      <div class="dec-help">Facts it can't guess - deadlines, budget, how you're feeling about each option.</div>
+      <div class="dec-label">Anything else we should know? <span class="opt-tag">optional</span></div>
+      <div class="dec-help">Facts AVEX can't guess - a deadline, a budget, how you feel about each option.</div>
       <textarea id="dec-context" maxlength="400" rows="2"
-        placeholder="e.g. Physics test on Friday, DBMS assignment already half done"
+        placeholder="e.g. My budget is about 50,000 and I mostly use it for college work"
       >${escapeHtml(dec.context)}</textarea>
     </div>
 
@@ -2547,76 +2559,58 @@ function renderDecSetup() {
       <ul class="dec-notes">${t.personalization_notes.map((n) => `<li>${escapeHtml(n)}</li>`).join("")}</ul>` : ""}
 
     <div class="dec-nav">
-      <button class="ghost-btn" id="dec-manual">Rate the options myself</button>
+      <button class="ghost-btn" id="dec-back">&larr; Back</button>
+      <button class="ghost-btn" id="dec-manual" title="Score every option yourself instead of letting AVEX do it">I'll rate them myself</button>
       <span class="wiz-err hidden" id="dec-err"></span>
       <span class="spacer"></span>
-      <button class="btn-primary" id="dec-auto">Decide for me</button>
+      <button class="btn-primary" id="dec-auto">Get my answer &rarr;</button>
     </div>`;
 
   $("#dec-context").addEventListener("input", (e) => { dec.context = e.target.value; });
 
-  const addOption = () => {
-    const input = $("#dec-opt-input");
-    const value = input.value.trim();
-    if (!value) return;
-    if (dec.options.some((o) => o.toLowerCase() === value.toLowerCase())) {
-      toast("That option is already added"); return;
-    }
-    if (dec.options.length >= 8) { toast("Maximum 8 options"); return; }
-    dec.options.push(value);
-    renderDecSetup();
-    $("#dec-opt-input").focus();
-  };
-  $("#dec-opt-add").addEventListener("click", addOption);
-  $("#dec-opt-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); addOption(); }
-  });
-
-  $("#dec-crit-add").addEventListener("click", () => {
+  const addCriterion = () => {
     const value = $("#dec-crit-input").value.trim();
     if (!value) return;
     if (dec.criteria.some((c) => c.name.toLowerCase() === value.toLowerCase())) {
-      toast("That criterion already exists"); return;
+      toast("That's already on the list"); return;
     }
-    if (dec.criteria.length >= 8) { toast("Maximum 8 criteria"); return; }
-    dec.criteria.push({ name: value, weight: 3, tag: "other" });
-    renderDecSetup();
+    if (dec.criteria.length >= 8) { toast("Maximum 8"); return; }
+    dec.criteria.push({ name: value, weight: null, tag: "other" });
+    renderDecCriteria();
+    $("#dec-crit-input").focus();
+  };
+  $("#dec-crit-add").addEventListener("click", addCriterion);
+  $("#dec-crit-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); addCriterion(); }
   });
 
-  $("#modal-body").querySelectorAll("[data-rm-opt]").forEach((btn) =>
-    btn.addEventListener("click", () => {
-      dec.options.splice(parseInt(btn.dataset.rmOpt, 10), 1);
-      renderDecSetup();
-    }));
   $("#modal-body").querySelectorAll("[data-rm-crit]").forEach((btn) =>
     btn.addEventListener("click", () => {
       dec.criteria.splice(parseInt(btn.dataset.rmCrit, 10), 1);
-      renderDecSetup();
+      renderDecCriteria();
     }));
   $("#modal-body").querySelectorAll(".dots[data-crit]").forEach((group) =>
     group.addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-w]");
       if (!btn) return;
       dec.criteria[parseInt(group.dataset.crit, 10)].weight = parseInt(btn.dataset.w, 10);
-      renderDecSetup();
+      renderDecCriteria();
     }));
 
-  const validateSetup = () => {
-    const err = $("#dec-err");
-    if (dec.options.length < 2) {
-      err.textContent = "Add at least two options.";
-      err.classList.remove("hidden"); return false;
+  const validate = () => {
+    if (!dec.criteria.length) { decError("Keep at least one thing that matters."); return false; }
+    const unset = dec.criteria.findIndex((c) => c.weight == null);
+    if (unset !== -1) {
+      decError("Please select how much each one matters.");
+      $(`.dots[data-crit="${unset}"] button`)?.focus();
+      return false;
     }
-    if (!dec.criteria.length) {
-      err.textContent = "Keep at least one criterion.";
-      err.classList.remove("hidden"); return false;
-    }
-    err.classList.add("hidden");
     return true;
   };
 
+  $("#dec-back").addEventListener("click", () => { dec.stage = "options"; renderDecision(); });
   $("#dec-manual").addEventListener("click", () => {
-    if (!validateSetup()) return;
+    if (!validate()) return;
     dec.stage = "rate";
     renderDecision();
   });
@@ -2624,11 +2618,10 @@ function renderDecSetup() {
   // The AVEX path: no rating grid at all - AVEX scores every option from the
   // criteria plus the student's survey profile, then we jump to the result.
   $("#dec-auto").addEventListener("click", async () => {
-    if (!validateSetup()) return;
-    const err = $("#dec-err");
+    if (!validate()) return;
     const btn = $("#dec-auto");
     btn.disabled = true;
-    btn.innerHTML = `<span class="spin"></span> Rating your options...`;
+    btn.innerHTML = `<span class="spin"></span> Weighing your options...`;
     try {
       dec.result = await runDecision(api.decideTaskAuto);
       dec.ratings = JSON.parse(JSON.stringify(dec.result.ratings));
@@ -2636,10 +2629,9 @@ function renderDecSetup() {
       renderDecision();
       refreshAfterDecision();
     } catch (error) {
-      err.textContent = error.message;
-      err.classList.remove("hidden");
+      decError(error.message);
       btn.disabled = false;
-      btn.textContent = "Decide for me";
+      btn.innerHTML = "Get my answer &rarr;";
     }
   });
 }
@@ -2669,7 +2661,7 @@ function runDecision(call) {
 }
 
 function refreshAfterDecision() {
-  if (state.view === "decide") renderDecide();
+  if (state.view === "decide") renderHome();
   if (state.view === "tasks") renderTasks();
 }
 
@@ -2678,12 +2670,12 @@ function refreshAfterDecision() {
 function renderDecRate() {
   $("#modal-body").innerHTML = `
     ${decHeader(dec.result && dec.result.ratings_source === "gemini"
-      ? `Adjust ${AI_NAME}'s ratings - change anything that looks off, then re-decide.`
-      : "Rate each option 1-5 on every criterion.")}
+      ? `Change any of ${AI_NAME}'s ratings that look off, then get a new answer.`
+      : "Rate each option from 1 (poor) to 5 (great) on each point.")}
     ${dec.criteria.map((c, ci) => `
       <div class="rate-block">
         <div class="rate-head">${escapeHtml(c.name)}</div>
-        <div class="rate-hint">${escapeHtml(c.hint || "5 = strongly in favour")} · counts ×${c.weight}</div>
+        <div class="rate-hint">${escapeHtml(c.hint || "5 = strongly in favour")} · matters ${c.weight}/5</div>
         ${dec.options.map((o) => `
           <div class="rate-row">
             <span class="name">${escapeHtml(o)}</span>
@@ -2694,10 +2686,10 @@ function renderDecRate() {
           </div>`).join("")}
       </div>`).join("")}
     <div class="dec-nav">
-      <button class="ghost-btn" id="dec-back">Back</button>
+      <button class="ghost-btn" id="dec-back">&larr; Back</button>
       <span class="wiz-err hidden" id="dec-err"></span>
       <span class="spacer"></span>
-      <button class="btn-primary" id="dec-run">Decide for me</button>
+      <button class="btn-primary" id="dec-run">Get my answer &rarr;</button>
     </div>`;
 
   $("#modal-body").querySelectorAll(".dots[data-ci]").forEach((group) =>
@@ -2711,7 +2703,7 @@ function renderDecRate() {
       group.querySelectorAll("button").forEach((b) => b.classList.toggle("sel", b === btn));
     }));
 
-  $("#dec-back").addEventListener("click", () => { dec.stage = "setup"; renderDecision(); });
+  $("#dec-back").addEventListener("click", () => { dec.stage = "criteria"; renderDecision(); });
 
   $("#dec-run").addEventListener("click", async () => {
     const err = $("#dec-err");
@@ -2722,7 +2714,7 @@ function renderDecRate() {
       }
     }
     if (missing.length) {
-      err.textContent = `Rate everything first (missing: ${[...new Set(missing)][0]}...).`;
+      err.textContent = `Rate every option first (still missing: ${[...new Set(missing)][0]}).`;
       err.classList.remove("hidden");
       return;
     }
@@ -2738,7 +2730,7 @@ function renderDecRate() {
       err.textContent = error.message;
       err.classList.remove("hidden");
       btn.disabled = false;
-      btn.textContent = "Decide for me";
+      btn.innerHTML = "Get my answer &rarr;";
     }
   });
 }
@@ -2822,14 +2814,20 @@ function auditContributions(audit) {
                   <span class="raw">${part.rating ?? "-"}/5</span>
                 </td>`;
               }).join("")}
-              <td class="num total">${row.total.toFixed(1)}%</td>
+              <td class="num total">${row.total.toFixed(1)}%${
+                row.separated ? `<span class="raw">raw ${row.raw_score.toFixed(1)}</span>` : ""}</td>
             </tr>`).join("")}
         </tbody>
       </table>
     </div>
     <p class="audit-note">
       Each cell is 100 × share × rating ÷ 5 - the points that criterion handed that
-      option. The row adds up to the score; nothing else is added anywhere.
+      option. The row adds up to the raw score; nothing else is added anywhere.
+      ${audit.contributions.some((row) => row.separated)
+        ? `Where two options landed within ${audit.margin?.min_gap_pts ?? 5} points of
+           each other, the shown score is spread apart so the ranking stays readable -
+           the raw sum is printed under it, and the order never changes.`
+        : ""}
     </p>`;
 }
 
@@ -2958,6 +2956,11 @@ function auditPanel(audit, behavioralLinks) {
             ${margin.winner_score.toFixed(1)}% against
             ${escapeHtml(margin.runner_up)}'s ${margin.runner_up_score.toFixed(1)}% -
             a gap of ${margin.gap_pts} points, or ${margin.clarity_pct}% of the leader.
+            ${margin.raw_gap_pts !== undefined && margin.raw_gap_pts !== margin.gap_pts
+              ? `On the raw arithmetic the gap is ${margin.raw_gap_pts} points
+                 (${margin.raw_winner_score.toFixed(1)}% vs ${margin.raw_runner_up_score.toFixed(1)}%);
+                 the shown scores are spread to at least ${margin.min_gap_pts} points apart.`
+              : ""}
             ${margin.decisive_criterion ? `Most of that came from
               <strong>${escapeHtml(margin.decisive_criterion)}</strong>, which supplied
               ${margin.decisive_share_pct}% of the winner's total.` : ""}
@@ -3100,7 +3103,7 @@ function assessmentPanel(assessment) {
       ${learning && !learning.enabled ? `
         <p class="assess-off">Learning from your decisions is switched off for
           this account, so the satisfaction estimate cannot adapt to you. You can
-          turn it on under Profile, in Data &amp; privacy.</p>` : ""}
+          turn it on under Profile (click your initials, top right).</p>` : ""}
     </div>`;
 }
 
@@ -3129,7 +3132,7 @@ function feedbackPanel(r) {
           ${predicted == null ? "" : (error === 0
             ? `We predicted ${predicted.toFixed(0)}% - exactly right.`
             : `We predicted ${predicted.toFixed(0)}%, so we were off by
-               ${Math.abs(error).toFixed(0)} points; the engine has corrected for it.`)}
+               ${Math.abs(error).toFixed(0)} points; AVEX has corrected for it.`)}
         </p>
         ${given.note ? `<p class="fb-note">${escapeHtml(given.note)}</p>` : ""}
         <button type="button" class="ghost-btn" id="fb-redo">Change my rating</button>
@@ -3140,7 +3143,7 @@ function feedbackPanel(r) {
     <div class="dec-section fb-card" id="fb-form">
       <div class="fb-head">
         <span class="dec-label" style="margin:0">How did it actually go?</span>
-        <span class="tag">Teaches the engine</span>
+        <span class="tag">Helps AVEX learn</span>
       </div>
       <p class="dec-help">
         This is the part that makes the next recommendation better. Your answer
@@ -3170,7 +3173,7 @@ function feedbackPanel(r) {
         </div>
       </div>
       <input id="fb-note" type="text" maxlength="200" class="fb-note-input"
-             placeholder="Anything the engine should know? (optional)" />
+             placeholder="Anything else we should know? (optional)" />
       <p id="fb-error" class="form-error hidden" role="alert"></p>
       <button type="button" class="btn-primary" id="fb-submit" disabled>Send feedback</button>
     </div>`;
@@ -3288,14 +3291,14 @@ function renderDecResult() {
   const max = Math.max(...r.scores.map((s) => s.score), 1);
   $("#modal-body").innerHTML = `
     ${decHeader(r.ratings_source === "gemini"
-      ? `Here's the call - ${AI_NAME} rated every option, the engine scored them against your profile.`
+      ? `Here's our suggestion - ${AI_NAME} rated each option against what matters to you.`
       : r.ratings_source === "engine"
-        ? `Here's the call - but ${AI_NAME} couldn't rate the options, so every rating is a neutral 3.`
-        : "Here's the call - based on your ratings and your decision profile.")}
+        ? `Here's a first answer - but ${AI_NAME} couldn't rate the options, so every rating is a neutral 3.`
+        : "Here's our suggestion - based on your ratings and what matters to you.")}
     ${r.ratings_source === "engine" ? `
       <div class="dec-help" style="margin-bottom:12px">
-        ${AI_NAME} rating was unavailable. Hit "Adjust ratings" below to score the options
-        yourself - the result above is only a placeholder until you do.
+        ${AI_NAME} couldn't rate the options just now. Press "Change the ratings" below
+        to score them yourself - this answer is only a placeholder until you do.
       </div>` : ""}
     <div class="winner">
       <div>
@@ -3315,7 +3318,7 @@ function renderDecResult() {
       <p class="clarity-note" style="margin-top:10px">
         ${Math.round(r.clarity * 100) >= 20
           ? `Clear winner - ${escapeHtml(r.best)} leads by ${Math.round(r.clarity * 100)}%. It won mainly on ${escapeHtml((r.drivers || []).join(" and ").toLowerCase())}.`
-          : `Close call (${Math.round(r.clarity * 100)}% gap) - but the numbers say ${escapeHtml(r.best)}. Commit and start.`}
+          : `Close call (only ${Math.round(r.clarity * 100)}% apart) - but ${escapeHtml(r.best)} comes out ahead. Either would be fine, so pick and start.`}
       </p>
     </div>
 
@@ -3351,8 +3354,8 @@ function renderDecResult() {
     ${auditPanel(r.audit, r.behavioral)}
 
     <div class="dec-nav">
-      <button class="ghost-btn" id="dec-redo">Re-decide</button>
-      <button class="ghost-btn" id="dec-adjust">Adjust ratings</button>
+      <button class="ghost-btn" id="dec-redo" title="Change the options or what matters">Start over</button>
+      <button class="ghost-btn" id="dec-adjust" title="Score each option yourself">Change the ratings</button>
       <span class="spacer"></span>
       <button class="btn-primary" id="dec-close">Done</button>
     </div>`;
@@ -3363,7 +3366,7 @@ function renderDecResult() {
   // since the result screen happened to be opened.
   $("#dec-redo").addEventListener("click", () => {
     decClockReset();
-    dec.stage = "setup";
+    dec.stage = "options";
     renderDecision();
   });
   $("#dec-adjust").addEventListener("click", () => {
@@ -3372,11 +3375,7 @@ function renderDecResult() {
     dec.stage = "rate";
     renderDecision();
   });
-  $("#dec-close").addEventListener("click", () => {
-    closeModal();
-    if (state.view === "decide") renderDecide();
-    if (state.view === "tasks") renderTasks();
-  });
+  $("#dec-close").addEventListener("click", closeModal);
 }
 
 /* ================= assistant bubble ================= */
@@ -3637,21 +3636,42 @@ function bindEvents() {
   // Only matters while the choice is "system"; applyTheme re-reads it anyway.
   darkQuery.addEventListener("change", applyTheme);
 
-  $("#about-btn").addEventListener("click", () => {
-    toast("Decide Well ranks what's on your plate with real math, then explains why.");
+  $("#about-btn").addEventListener("click", () => openInfoModal(aboutHtml()));
+  $("#info-close").addEventListener("click", closeInfoModal);
+  $("#info-root").addEventListener("click", (e) => {
+    if (e.target === $("#info-root")) closeInfoModal();
   });
 
   $("#app-nav").addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-view]");
     if (btn) setView(btn.dataset.view);
   });
+  $("#user-avatar").addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (userMenuIsOpen()) closeUserMenu();
+    else openUserMenu();
+  });
+  $("#user-menu-list").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-view]");
+    if (btn) setView(btn.dataset.view);
+  });
+  document.addEventListener("click", (e) => {
+    if (userMenuIsOpen() && !e.target.closest("#user-menu")) closeUserMenu();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && userMenuIsOpen()) {
+      closeUserMenu();
+      $("#user-avatar").focus();
+    }
+  });
   $("#logout-btn").addEventListener("click", () => {
+    closeUserMenu();
     setToken(null);
     Object.assign(state, {
       user: null, surveyAnswers: null, wizard: { step: 0, draft: {} },
       learning: null,
       consent: {
-        privacy: false, personalization: false, ai_processing: false,
+        privacy: false, personalization: false, ai_processing: true,
         age_confirmed: false,
       },
     });
@@ -3661,11 +3681,6 @@ function bindEvents() {
     showAuth();
   });
 
-  $("#task-category").addEventListener("change", syncCategoryFields);
-  bindDuePicker();
-  $("#task-form").addEventListener("submit", handleTaskSubmit);
-  $$(".estimate-chips button").forEach((chip) =>
-    chip.addEventListener("click", () => { $("#task-estimate").value = chip.dataset.min; }));
   $("#task-filter").addEventListener("click", (e) => {
     const btn = e.target.closest("button");
     if (!btn) return;
@@ -3683,9 +3698,13 @@ function bindEvents() {
   $("#task-list").addEventListener("click", handleTaskAction);
   $("#task-matrix").addEventListener("click", handleTaskAction);
   $("#task-matrix").addEventListener("pointerdown", onDragStart);
-  $("#decide-list").addEventListener("click", handleTaskAction);
   $("#up-next").addEventListener("click", handleTaskAction);
-  $("#explain-btn").addEventListener("click", handleExplain);
+  bindHome();
+  // Survey shortcuts ("Answer the questions") live inside rendered cards.
+  $("#view-insights").addEventListener("click", (e) => {
+    const go = e.target.closest("[data-go]");
+    if (go) setView(go.dataset.go);
+  });
 
   bindChat();
 
@@ -3699,6 +3718,9 @@ function bindEvents() {
       renderTempo();
     });
   }
+  $("#insights-more").addEventListener("toggle", (e) => {
+    if (e.target.open) drawTempo();
+  });
   // The charts are drawn at real pixel width, so a resize has to redraw them.
   // Redraw only - the numbers did not change, so there is nothing to refetch.
   let tempoResize;
@@ -3720,7 +3742,9 @@ function bindEvents() {
     if (e.target === $("#modal-root")) closeModal();
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !$("#modal-root").classList.contains("hidden")) closeModal();
+    if (e.key !== "Escape") return;
+    if (infoIsOpen()) { closeInfoModal(); return; }
+    if (!$("#modal-root").classList.contains("hidden")) closeModal();
   });
 }
 
@@ -3728,7 +3752,6 @@ async function boot() {
   bindEvents();
   applyTheme();
   applyAuthMode();
-  syncCategoryFields();
   if (getToken()) {
     try {
       state.user = await api.me();

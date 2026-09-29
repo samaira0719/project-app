@@ -14,7 +14,7 @@ Branching
 ---------
 Steps 1-4 are asked of everybody: they carry every answer the scoring engine
 and the option-level decision engine actually read (motivator, many_tasks,
-choice_factors, decision_style, when_unsure, the procrastination scales...).
+choice_factors, when_unsure, the procrastination scales...).
 Nothing downstream can lose an input it depends on.
 
 Step 4 ("Where you need help") is the branch point. Each later section
@@ -41,11 +41,9 @@ SURVEY_SPEC: list[dict[str, Any]] = [
         "blurb": "A few basics so the engine knows who it is helping.",
         "accent": "sage",
         "questions": [
-            {"key": "age", "label": "What is your age?", "type": "number", "min": 14, "max": 24},
+            {"key": "age", "label": "What is your age?", "type": "number", "min": 14, "max": 99},
             {"key": "gender", "label": "Gender", "type": "single",
              "options": ["Male", "Female", "Other", "Prefer not to say"]},
-            {"key": "pending_tasks", "label": "On a normal day, roughly how many pending tasks do you have?",
-             "type": "single", "options": ["1-2", "2-5", "5-7", "7+"]},
         ],
     },
     {
@@ -78,17 +76,11 @@ SURVEY_SPEC: list[dict[str, Any]] = [
              "type": "single", "options": [
                  "Do the easiest first", "Do the most urgent",
                  "Do whatever you feel like", "Freeze and do nothing for a while"]},
-            {"key": "decide_time", "label": "How long do you usually take to decide what to start?",
-             "type": "single", "options": ["Under 1 min", "1-5 min", "5-15 min", "More"]},
             {"key": "choice_factors",
              "label": "When choosing between options, which factors are important to you?",
              "type": "multi", "options": [
                  "Cost", "Convenience", "Quality", "Fun / Enjoyment", "Long-term benefits",
                  "Time required", "Social approval", "Personal growth", "Risk level"]},
-            {"key": "decision_style", "label": "Which best describes your decision-making style?",
-             "type": "single", "options": [
-                 "I decide quickly and move on", "I compare many options before deciding",
-                 "I often postpone decisions", "I frequently ask others for advice"]},
             # These two drive the scoring weights and the criterion multipliers
             # for *every* category, so they are asked of everybody rather than
             # living behind the Motivation branch.
@@ -190,10 +182,6 @@ SURVEY_SPEC: list[dict[str, Any]] = [
             {"key": "restart_effort",
              "label": "Once you've stopped, how hard is it to start again?",
              "type": "scale", "low": "I pick it straight back up", "high": "Almost impossible"},
-            {"key": "accountability",
-             "label": "Do you follow through more when someone else knows your plan?",
-             "type": "single", "options": [
-                 "Much more", "A bit more", "No difference", "It makes it worse"]},
             {"key": "self_trust",
              "label": "How much do you trust your own judgement on a close call?",
              "type": "scale", "low": "Not at all", "high": "Completely"},
@@ -251,10 +239,6 @@ SURVEY_SPEC: list[dict[str, Any]] = [
         "because": "Purchases",
         "depends_on": {"key": "support_areas", "contains": "Purchases"},
         "questions": [
-            {"key": "purchase_time",
-             "label": "How much time do you usually spend deciding before making a purchase?",
-             "type": "single", "options": [
-                 "Less than 5 minutes", "5-30 minutes", "1-2 hours", "More than 2 hours"]},
             {"key": "purchase_influence",
              "label": "When making a purchase, what influences your decision the most?",
              "type": "single", "options": ["Price", "Quality", "Brand", "Reviews and ratings", "Discounts"]},
@@ -278,8 +262,6 @@ SURVEY_SPEC: list[dict[str, Any]] = [
         "because": "Managing Time",
         "depends_on": {"key": "support_areas", "contains": "Managing Time"},
         "questions": [
-            {"key": "decide_first_task", "label": "How good are you at deciding what task to do first?",
-             "type": "scale", "low": "Very bad", "high": "Very good"},
             {"key": "balance_life", "label": "Can you balance studies/work and personal life?",
              "type": "scale", "low": "Not at all", "high": "Perfectly"},
             {"key": "plan_horizon", "label": "How far ahead do you plan your day?",
@@ -303,8 +285,8 @@ SURVEY_SPEC: list[dict[str, Any]] = [
         "depends_on": {"key": "support_areas",
                        "contains_any": ["Social Activity", "Entertainment"]},
         "questions": [
-            {"key": "social_challenge", "label": "What is your biggest challenge when making social decisions?",
-             "type": "single", "options": [
+            {"key": "social_challenge", "label": "What are your biggest challenges when making social decisions?",
+             "type": "multi", "options": [
                  "Fear of missing out (FOMO)", "Peer pressure", "Timings",
                  "Transportation", "Social anxiety", "Unsure what I'll enjoy"]},
             {"key": "ask_friends_freq",
@@ -323,6 +305,20 @@ SURVEY_SPEC: list[dict[str, Any]] = [
 ALL_QUESTIONS: dict[str, dict[str, Any]] = {
     q["key"]: q for section in SURVEY_SPEC for q in section["questions"]
 }
+
+# Questions that used to be in the survey. Answers saved under these keys are
+# still sitting in older profiles (and come straight back through the wizard
+# when a student retakes it), so a submission that carries them is dropped
+# silently rather than rejected as "unknown fields". Nothing downstream reads
+# them any more.
+RETIRED_KEYS: frozenset[str] = frozenset({
+    "pending_tasks",      # roughly how many pending tasks per day
+    "decide_time",        # how long to decide what to start
+    "decision_style",     # decision-making style
+    "accountability",     # follow through more when someone knows the plan
+    "purchase_time",      # time spent deciding before a purchase
+    "decide_first_task",  # how good at deciding what to do first
+})
 
 # question key -> the section that owns it, so validation can apply the
 # section's branch condition as well as the question's own.
@@ -418,6 +414,10 @@ def validate_answers(answers: dict[str, Any]) -> tuple[dict[str, Any], list[str]
             else:
                 cleaned[key] = matched
         elif qtype == "multi":
+            # A question promoted from single to multi (social_challenge) has
+            # older answers stored as one string; treat that as a one-item list.
+            if isinstance(value, str):
+                value = [value]
             if not isinstance(value, list):
                 errors.append(f"Invalid choices for '{key}'")
             else:
@@ -441,7 +441,7 @@ def validate_answers(answers: dict[str, Any]) -> tuple[dict[str, Any], list[str]
             if text:
                 cleaned[key] = text
 
-    unknown = set(answers) - set(ALL_QUESTIONS)
+    unknown = set(answers) - set(ALL_QUESTIONS) - RETIRED_KEYS
     if unknown:
         errors.append(f"Unknown fields: {', '.join(sorted(unknown))}")
     return cleaned, errors

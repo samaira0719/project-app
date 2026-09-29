@@ -523,6 +523,30 @@ button:focus-visible {
   border: 1px solid var(--primary-border);
   font-weight: 700; font-size: .74rem;
 }
+/* ---- avatar menu (Insights / History / Profile) ---- */
+.user-menu { position: relative; }
+button.avatar {
+  padding: 0; cursor: pointer; font-family: inherit;
+  transition: box-shadow .15s ease, background .15s ease;
+}
+button.avatar:hover,
+button.avatar[aria-expanded="true"] { box-shadow: 0 0 0 3px var(--primary-soft); }
+button.avatar.active { background: var(--ink); color: var(--ink-inverse); border-color: var(--ink); }
+.user-menu-list {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 30;
+  min-width: 170px; padding: 6px;
+  display: flex; flex-direction: column; gap: 2px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 14px; box-shadow: var(--shadow-md);
+}
+.user-menu-list button {
+  border: none; background: transparent; text-align: left;
+  padding: 9px 12px; border-radius: 9px;
+  font: inherit; font-weight: 600; font-size: .9rem; color: var(--ink-2);
+  cursor: pointer;
+}
+.user-menu-list button:hover { background: var(--sage-pale); color: var(--ink); }
+.user-menu-list button.active { background: var(--ink); color: var(--ink-inverse); }
 .app-main { flex: 1; width: min(1080px, 94vw); margin: 0 auto; padding: 28px 0 64px; }
 .app-footer { text-align: center; font-size: .74rem; color: var(--ink-3); padding: 18px; border-top: 1px solid var(--line); }
 
@@ -532,7 +556,7 @@ button:focus-visible {
 }
 
 /* ============ TASKS ============ */
-.tasks-layout { display: grid; grid-template-columns: 350px 1fr; gap: 22px; align-items: start; }
+.tasks-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; align-items: start; }
 .task-form-col { position: sticky; top: 76px; }
 .task-form .btn-primary { width: 100%; margin-top: 6px; }
 .estimate-row { display: flex; align-items: center; gap: 8px; }
@@ -869,6 +893,7 @@ button:focus-visible {
 .crit-row:last-of-type { border-bottom: none; }
 .crit-name { flex: 1; font-size: .88rem; font-weight: 600; min-width: 0; }
 .crit-name .hint { display: block; font-weight: 400; font-size: .72rem; color: var(--ink-3); }
+.crit-name .crit-need { display: block; margin-top: 2px; font-weight: 600; font-size: .72rem; color: var(--coral); }
 .dots { display: flex; gap: 5px; }
 .dots button {
   width: 26px; height: 26px; border-radius: 50%;
@@ -1087,10 +1112,7 @@ button:focus-visible { outline-color: var(--sage-deep); }
 /* the sticky form clears the taller header */
 .task-form-col { top: 116px; }
 
-.tasks-layout {
-  grid-template-columns: minmax(430px, 540px) 1fr;
-  gap: 26px;
-}
+.tasks-layout { gap: 26px; }
 
 /* even rhythm inside the form instead of per-field margins */
 .task-form {
@@ -1638,6 +1660,9 @@ body.eis-dragging .eis-cell:not(.drop-target) { opacity: .78; }
 .audit-matrix .cell-pts { line-height: 1.25; }
 .audit-matrix .cell-pts .pts { display: block; }
 .audit-matrix .cell-pts .raw { display: block; font-size: .64rem; font-weight: 500; color: var(--ink-3); }
+/* The total column prints the unspread sum under a score that was pushed apart
+   from its neighbour to keep the 5-point display gap. */
+.audit-matrix .total .raw { display: block; font-size: .64rem; font-weight: 500; color: var(--ink-3); }
 .audit-matrix .total { font-size: .92rem; font-weight: 800; }
 .audit-matrix tr.winner-row { background: var(--sage-pale); }
 .audit-matrix tr.winner-row .total { color: var(--sage-deep); }
@@ -1680,7 +1705,6 @@ body.eis-dragging .eis-cell:not(.drop-target) { opacity: .78; }
 }
 @media (max-width: 960px) {
   html { font-size: 17px; }
-  .tasks-layout { grid-template-columns: 1fr; }
   .task-form-col { position: static; }
   .two-col { grid-template-columns: 1fr; }
   .up-next { grid-template-columns: 1fr; text-align: center; }
@@ -2793,6 +2817,53 @@ body.eis-dragging .eis-cell:not(.drop-target) { opacity: .78; }
   padding: 11px 12px; background: rgba(255, 255, 255, .04);
 }
 
+/* ---- info sheet: About Us and the full data-handling notice ----
+   Reuses the decision modal's backdrop and sheet, sitting above the auth
+   screen's particle canvas and below the toast. Text-heavy, so it reads
+   as a document: left-aligned, generous line height, one column. */
+.info-backdrop { z-index: 45; }
+.info-modal {
+  width: min(640px, 100%);
+  max-height: 86vh;
+  padding: 30px 32px 28px;
+  text-align: left;
+  color: var(--ink);
+}
+.info-doc { font-size: .86rem; line-height: 1.6; color: var(--ink-2, var(--ink)); }
+.info-doc .dec-kicker { display: block; }
+.info-title {
+  font-family: var(--font-display); font-size: 1.35rem; font-weight: 700;
+  line-height: 1.25; margin: 0 36px 6px 0; color: var(--ink);
+}
+.info-meta { font-size: .7rem; color: var(--ink-3); margin: 0 0 10px; }
+.info-lead { font-size: .95rem; color: var(--ink); margin: 0 0 14px; }
+.info-doc h3 {
+  font-size: .78rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--primary); margin: 20px 0 8px;
+  padding-top: 14px; border-top: 1px solid var(--line);
+}
+.info-doc p { margin: 0 0 8px; }
+.info-list { margin: 0 0 8px; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+.info-list strong { color: var(--ink); }
+.info-where { display: block; font-style: normal; font-size: .7rem; color: var(--ink-3); }
+.info-foot { font-size: .8rem; color: var(--ink-3); margin-top: 12px; }
+.info-scope {
+  border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 14px; margin: 0 0 10px; background: var(--card-2, transparent);
+}
+.info-scope h4 {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-size: .9rem; font-weight: 700; margin: 0 0 6px; color: var(--ink);
+}
+.info-scope h4 .consent-flag { color: var(--primary); border-color: var(--line-strong); }
+.info-sub { font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); margin: 8px 0 4px; }
+.info-facts { font-size: .8rem; margin-top: 8px; }
+.info-facts dt { color: var(--ink); }
+.info-facts dd { color: var(--ink-2, var(--ink)); }
+@media (max-width: 640px) {
+  .info-modal { padding: 24px 18px 22px; max-height: 90vh; }
+}
+
 
 /* ==========================================================================
    CONFIDENCE + PREDICTED SATISFACTION (decision result)
@@ -3245,3 +3316,206 @@ body.eis-dragging .eis-cell:not(.drop-target) { opacity: .78; }
   .task-form .card-title { font-size: 1.1rem; }
   .estimate-chips button { padding: 8px 12px; font-size: .82rem; }
 }
+
+/* ============================================================
+   EASIER NAVIGATION
+   The "What are you deciding?" home, the step indicator in the
+   decision workspace, labelled task actions and the simpler
+   Insights page. Kept last so it wins over the density blocks
+   above; its own phone rules follow it.
+   ============================================================ */
+
+/* ---- home: the one question ---- */
+.setup-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  background: var(--sage-pale); border: 1px solid var(--sage-border);
+  border-radius: var(--r-lg); padding: 16px 20px;
+  max-width: 760px; margin: 0 auto 18px;
+}
+.setup-banner strong { display: block; color: var(--ink); }
+.setup-banner span { font-size: .88rem; color: var(--ink-2); }
+.setup-banner .btn-dark { white-space: nowrap; flex-shrink: 0; }
+
+.ask-card { max-width: 760px; margin: 12px auto 28px; padding: 34px 36px; }
+.ask-steps {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: .74rem; font-weight: 700; letter-spacing: .04em;
+  color: var(--ink-3); margin-bottom: 18px;
+}
+.ask-steps span.on { color: var(--sage-deep); }
+.ask-steps i { width: 18px; height: 1px; background: var(--line-strong); }
+.ask-title { font-family: var(--font-display); font-size: 1.75rem; margin: 0 0 6px; }
+.ask-title label { cursor: text; }
+.ask-sub { font-size: .95rem; margin: 0 0 18px; }
+.ask-input {
+  width: 100%; font-size: 1.15rem; padding: 16px 18px;
+  border: 1.5px solid var(--line-strong); border-radius: var(--r-md);
+  background: var(--card); color: var(--ink);
+}
+.ask-input:focus { outline: none; border-color: var(--sage-deep); box-shadow: 0 0 0 4px var(--sage-pale); }
+.ask-group { margin-top: 22px; }
+.ask-label { display: block; font-weight: 600; font-size: .92rem; color: var(--ink); margin-bottom: 10px; }
+.ask-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ask-chips button {
+  border: 1px solid var(--line-strong); background: var(--card); color: var(--ink-2);
+  border-radius: 999px; padding: 9px 16px; font-size: .9rem; font-weight: 600;
+  cursor: pointer; transition: border-color .13s, background .13s, color .13s;
+}
+.ask-chips button:hover { border-color: var(--sage-deep); color: var(--ink); }
+.ask-chips button.sel { background: var(--ink); border-color: var(--ink); color: var(--ink-inverse); }
+.ask-actions { display: flex; gap: 12px; margin-top: 26px; }
+.ask-go { flex: 2 1 0; padding: 15px; font-size: 1.02rem; }
+.ask-later {
+  flex: 1 1 0;
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  padding: 15px;
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  transition: border-color .15s, background .15s, color .15s;
+}
+.ask-later:hover { border-color: var(--ink-3); color: var(--ink); }
+.ask-later:disabled { opacity: .55; cursor: default; }
+.ask-later-note { margin-top: 10px; font-size: .8rem; text-align: center; }
+#ask-error { margin-top: 16px; }
+
+.home-section { max-width: 760px; margin: 0 auto 26px; }
+.home-head { font-size: 1.02rem; margin: 0 0 4px; }
+.home-sub { margin: 0 0 12px; }
+.home-section .stack { margin-top: 10px; }
+.home-item { cursor: default; }
+.link-btn {
+  background: none; border: none; padding: 10px 2px; cursor: pointer;
+  color: var(--sage-deep); font-weight: 600; font-size: .9rem;
+}
+.link-btn:hover { text-decoration: underline; }
+
+/* ---- task cards: labelled actions ----
+   The buttons get their own row under the text (lined up with the title,
+   past the rank badge), so the title never has to squeeze beside them. */
+.task-item { flex-wrap: wrap; row-gap: 10px; }
+.task-actions {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  flex: 1 0 100%; padding-left: 52px;
+}
+.home-item { flex-wrap: nowrap; }
+.home-item .task-actions, .home-item > .task-btn { flex: 0 0 auto; }
+.task-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line-strong); background: var(--card); color: var(--ink-2);
+  border-radius: var(--r-sm); padding: 7px 11px;
+  font-size: .8rem; font-weight: 600; white-space: nowrap; cursor: pointer;
+  transition: border-color .13s, color .13s, background .13s;
+}
+.task-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+.task-btn:hover { border-color: var(--green); color: var(--green); }
+.task-btn.danger:hover { border-color: var(--coral); color: var(--coral); }
+.task-btn-decide { background: var(--ink); border-color: var(--ink); color: var(--ink-inverse); }
+.task-btn-decide:hover { background: var(--primary-strong); border-color: var(--primary-strong); color: var(--ink-inverse); }
+
+.score-chip { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.score-chip small {
+  font-family: var(--font-body); font-size: .58rem; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; opacity: .8; margin-bottom: 1px;
+}
+.task-reason { font-size: .8rem; color: var(--ink-2); margin-top: 5px; }
+.list-subhead {
+  font-size: .74rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-3); margin: 6px 0 2px 4px;
+}
+.empty-btn { margin: 16px auto 0; display: inline-block; }
+
+/* ---- "Start with this" card, now at the top of My tasks ---- */
+.up-next { grid-template-columns: 110px 1fr auto; }
+.up-next .ring { width: 110px; height: 110px; }
+.up-next .ring svg { width: 110px; height: 110px; }
+.ring .val { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
+.ring .val small {
+  font-family: var(--font-body); font-size: .58rem; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase; opacity: .75; margin-top: 4px;
+}
+.up-next-clarity { font-size: .78rem; color: #A6ABAD; margin-top: 8px; }
+.up-next-actions { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.up-next-btn {
+  background: transparent; color: #F4F3EF;
+  border: 1px solid rgba(255, 255, 255, .28); border-radius: var(--r-sm);
+  padding: 9px 16px; font-weight: 600; font-size: .85rem; cursor: pointer; white-space: nowrap;
+}
+.up-next-btn:hover { border-color: rgba(255, 255, 255, .6); background: rgba(255, 255, 255, .06); }
+.up-next-btn:disabled { opacity: .6; cursor: default; }
+#insight-panel { margin-bottom: 16px; }
+
+/* ---- decision workspace: step indicator ---- */
+.dec-steps {
+  display: flex; flex-wrap: wrap; gap: 6px 18px; list-style: none;
+  margin: 0 40px 18px 0; padding: 0;
+  font-size: .78rem; font-weight: 600; color: var(--ink-3);
+}
+.dec-steps li { display: flex; align-items: center; gap: 7px; }
+.dec-steps li span {
+  width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  border: 1px solid var(--line-strong); font-size: .72rem; font-weight: 700;
+}
+.dec-steps li.done { color: var(--sage-deep); }
+.dec-steps li.done span { background: var(--sage-pale); border-color: var(--sage-border); color: var(--sage-deep); }
+.dec-steps li.on { color: var(--ink); }
+.dec-steps li.on span { background: var(--ink); border-color: var(--ink); color: var(--ink-inverse); }
+.dec-sub strong { color: var(--ink); }
+
+/* ---- Insights: simple first, detail on request ---- */
+.learn-next { font-size: .9rem; color: var(--ink-2); margin: 8px 0 0; }
+.learn-more { margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 12px; }
+.learn-more > summary,
+.insights-more > summary {
+  cursor: pointer; font-weight: 600; color: var(--sage-deep); list-style: none;
+}
+.learn-more > summary::-webkit-details-marker,
+.insights-more > summary::-webkit-details-marker { display: none; }
+.learn-more > summary::before,
+.insights-more > summary::before { content: "\25B8  "; }
+.learn-more[open] > summary::before,
+.insights-more[open] > summary::before { content: "\25BE  "; }
+.learn-more[open] > summary { margin-bottom: 12px; }
+.insights-more { margin-top: 18px; }
+.insights-more > summary {
+  display: block; background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 16px 20px; box-shadow: var(--shadow-sm);
+}
+.insights-more > summary span { font-size: .98rem; }
+.insights-more > summary em {
+  display: block; font-style: normal; font-weight: 400; font-size: .84rem;
+  color: var(--ink-3); margin: 2px 0 0 14px;
+}
+.insights-more[open] > summary { margin-bottom: 16px; }
+.tips-cta { list-style: none; }
+.tips-cta::before { display: none !important; }
+.tips-cta .btn-dark { display: block; margin-top: 12px; }
+#insights-summary { margin-top: 4px; font-size: .95rem; }
+
+@media (max-width: 860px) {
+  .ask-card { padding: 24px 20px; margin-top: 4px; }
+  .ask-title { font-size: 1.4rem; }
+  .ask-steps { display: none; }
+  .ask-actions { flex-direction: column; }
+  .setup-banner { flex-direction: column; align-items: stretch; }
+
+  /* badge, text and priority share the first row; only the buttons wrap */
+  .task-item .task-main { flex: 1 1 0; }
+  .task-actions { padding-left: 0; }
+  .home-item { flex-wrap: wrap; }
+  /* people open My tasks to see their tasks - the form can wait below */
+  .task-list-col { order: -1; }
+
+  .up-next { grid-template-columns: 1fr; }
+  .up-next .ring { margin: 0 auto; }
+  .up-next-actions { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+
+  .dec-steps { font-size: .72rem; gap: 6px 12px; }
+  .dec-nav { flex-wrap: wrap; }
+}
+
+/* the add box has to shrink, or its Add button falls off a phone screen */
+.add-row input { flex: 1 1 auto; min-width: 0; }
+.add-row .btn-dark { flex-shrink: 0; }

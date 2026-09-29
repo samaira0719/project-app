@@ -20,14 +20,12 @@ def profile_lines(survey: dict) -> list[str]:
     basics = []
     if pick("age"):
         basics.append(f"age {pick('age')}")
-    if pick("pending_tasks"):
-        basics.append(f"{pick('pending_tasks')} pending tasks on a normal day")
     if basics:
         lines.append("- " + ", ".join(basics))
     if pick("many_tasks"):
         lines.append(f"- with many tasks they usually: {pick('many_tasks').lower()}")
-    if pick("decision_style"):
-        lines.append(f"- decision style: {pick('decision_style').lower()}")
+    if pick("when_unsure"):
+        lines.append(f"- when unsure they usually: {pick('when_unsure').lower()}")
     if pick("motivator"):
         lines.append(f"- most motivated by: {pick('motivator').lower()}")
     struggles = [
@@ -77,8 +75,6 @@ def _branch_lines(survey: dict) -> list[str]:
     # --- motivation ---
     if pick("motivation_dip"):
         lines.append("- loses motivation when: " + ", ".join(pick("motivation_dip")).lower())
-    if pick("accountability") in ("Much more", "A bit more"):
-        lines.append("- follows through more when someone else knows the plan")
     if (pick("restart_effort") or 0) >= 4:
         lines.append("- finds it very hard to restart once they have stopped")
 
@@ -105,6 +101,11 @@ def _branch_lines(survey: dict) -> list[str]:
         lines.append(f"- on a trip, protects {pick('travel_protect').lower()} first")
     if pick("travel_lead_time"):
         lines.append(f"- plans trips {pick('travel_lead_time').lower()} ahead")
+    social_challenges = pick("social_challenge") or []
+    if isinstance(social_challenges, str):
+        social_challenges = [social_challenges]
+    if social_challenges:
+        lines.append("- finds social decisions hard because of: " + ", ".join(social_challenges).lower())
     if pick("social_recharge"):
         lines.append(f"- recharges with: {pick('social_recharge').lower()}")
     if pick("social_guilt") in ("Often", "Very Often"):

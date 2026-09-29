@@ -256,7 +256,6 @@ def personalize(
         survey.get("delay_start") in OFTEN,
         survey.get("stuck_first") in OFTEN,
         survey.get("regret") in OFTEN,
-        survey.get("decision_style") == "I often postpone decisions",
         survey.get("when_unsure") in ("Postpone it", "Keep over-researching"),
         "Procrastination" in (survey.get("study_challenges") or []),
     ))

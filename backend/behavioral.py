@@ -465,7 +465,7 @@ def profile_correlations(survey: dict | None) -> list[dict[str, Any]]:
     factors = set(pick("choice_factors") or [])
     challenges = set(pick("study_challenges") or [])
     motivator = pick("motivator", "")
-    style = pick("decision_style", "")
+    unsure = pick("when_unsure", "")
     many = pick("many_tasks", "")
     links: list[dict[str, Any]] = []
 
@@ -535,8 +535,6 @@ def profile_correlations(survey: dict | None) -> list[dict[str, Any]]:
             ("regret", "you often wish afterwards that you had done something else first"),
         ) if pick(key) in OFTEN
     ]
-    if style == "I often postpone decisions":
-        procrastination.append("you describe yourself as postponing decisions")
     if pick("when_unsure") == "Postpone it":
         procrastination.append("when unsure you postpone")
     if "Procrastination" in challenges:
@@ -561,7 +559,7 @@ def profile_correlations(survey: dict | None) -> list[dict[str, Any]]:
             signal="An open backlog plus delayed starts is the condition this effect describes.",
         ))
 
-    if pick("stuck_first") in OFTEN or pick("decide_time") in ("5-15 min", "More"):
+    if pick("stuck_first") in OFTEN or pick("delay_start") in OFTEN:
         links.append(_link(
             "attribute_substitution",
             signal=(
@@ -572,17 +570,10 @@ def profile_correlations(survey: dict | None) -> list[dict[str, Any]]:
         ))
 
     # --- search style ---
-    if style == "I compare many options before deciding" or \
-            pick("when_unsure") == "Keep over-researching" or \
-            pick("purchase_time") == "More than 2 hours":
+    if unsure == "Keep over-researching":
         links.append(_link(
             "maximizing",
-            signal=(
-                "You compare exhaustively before committing"
-                + (" and spend over two hours on a purchase decision"
-                   if pick("purchase_time") == "More than 2 hours" else "")
-                + "."
-            ),
+            signal="When unsure, you keep researching rather than committing.",
             kind="risk",
             strength="strong",
         ))
@@ -591,7 +582,7 @@ def profile_correlations(survey: dict | None) -> list[dict[str, Any]]:
             signal="Exhaustive comparison is where added options start costing you.",
         ))
 
-    if style == "I frequently ask others for advice" or pick("ask_friends_freq") in OFTEN:
+    if unsure == "Ask someone" or pick("ask_friends_freq") in OFTEN:
         links.append(_link(
             "social_proof",
             signal="You often check with other people before deciding.",
@@ -660,21 +651,24 @@ def profile_correlations(survey: dict | None) -> list[dict[str, Any]]:
             ),
             kind="risk",
         ))
-    if pick("social_challenge") == "Fear of missing out (FOMO)":
+    social_challenges = pick("social_challenge") or []
+    if isinstance(social_challenges, str):  # stored before it became multi-choice
+        social_challenges = [social_challenges]
+    if "Fear of missing out (FOMO)" in social_challenges:
         links.append(_link(
             "fomo",
-            signal="You named FOMO as your hardest part of social decisions.",
+            signal="You named FOMO as one of the hardest parts of social decisions.",
             kind="risk",
         ))
 
     # --- detail from the branches the student unlocked ---
-    if pick("plan_horizon") == "I don't plan" or pick("accountability") == "Much more":
+    if pick("plan_horizon") in ("I don't plan", "The morning of"):
         links.append(_link(
             "implementation_intentions",
             signal=(
                 "You don't plan the day ahead at all"
                 if pick("plan_horizon") == "I don't plan"
-                else "You follow through much more when someone else knows the plan"
+                else "You only plan the day on the morning itself"
             ),
             response=(
                 "Every decision ends on a concrete first move - a when and a "
