@@ -2526,16 +2526,15 @@ function renderDecCriteria() {
     ${decHeader(`Comparing ${dec.options.map((o) => `<strong>${escapeHtml(o)}</strong>`).join(", ")}.`)}
 
     <div class="dec-section">
-      <div class="dec-label">How much does each of these matter to you?</div>
+      <div class="dec-label">How important is each factor to you?</div>
       <div class="dec-help">We've suggested a few for ${escapeHtml(dec.task.category)}.
-        <strong>1 = matters a little, 5 = matters a lot.</strong>
-        Remove any that don't fit, or add your own.</div>
+        Choose <strong>1 if it matters a little</strong> and <strong>5 if it matters a lot</strong>.
+        You can remove any that don't fit or add your own.</div>
       ${dec.criteria.map((c, i) => `
         <div class="crit-row">
           <span class="crit-name">${escapeHtml(c.name)}
-            ${c.hint ? `<span class="hint">${escapeHtml(c.hint)}</span>` : ""}
             ${c.weight == null ? `<span class="crit-need">Please select</span>` : ""}</span>
-          <span class="dots" data-crit="${i}" role="group" aria-label="How much ${escapeHtml(c.name)} matters">
+          <span class="dots" data-crit="${i}" role="group" aria-label="How important ${escapeHtml(c.name)} is">
             ${[1, 2, 3, 4, 5].map((n) =>
               `<button data-w="${n}" class="${c.weight === n ? "sel" : ""}" aria-pressed="${c.weight === n}">${n}</button>`).join("")}
           </span>

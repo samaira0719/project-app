@@ -147,7 +147,7 @@ CATEGORY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"name": "Cost", "tag": "cost", "weight": 3,
              "hint": "5 = cheap or free"},
             {"name": "Time it takes", "tag": "effort", "weight": 2,
-             "hint": "5 = fits easily in your day"},
+             "hint": "5 = takes less time; 1 = takes more time"},
         ],
     },
 }
