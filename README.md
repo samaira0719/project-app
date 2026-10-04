@@ -19,6 +19,61 @@ python run.py                 # http://127.0.0.1:8000
 
 API docs (Swagger): http://127.0.0.1:8000/docs
 
+## Visible-time usage tracking
+
+The browser creates one random ID per tab (`sessionStorage`) and sends an
+immediate heartbeat plus one every 20 seconds while the page is visible. Hiding
+or leaving the page stops the timer and attempts one final beacon. The backend
+groups by client IP and tab ID; after 60 seconds without a heartbeat it logs a
+`session_end` event. The approximate duration is `last_seen - first_seen` and
+the lifecycle/request records are JSON messages written to stdout for the
+hosting platform's normal runtime logs. Heartbeat and health requests are
+excluded from request logs.
+
+Configuration (all optional):
+
+| Variable | Default | Purpose |
+|---|---:|---|
+| `TRACKING_ENABLED` | `true` | Disable usage collection and its cleanup worker |
+| `SESSION_IDLE_TIMEOUT` | `60` | Seconds without a heartbeat before ending a session |
+| `HEARTBEAT_INTERVAL` | `20` | Documented browser heartbeat interval in seconds |
+| `TRACKING_CLEANUP_INTERVAL` | `15` | Seconds between backend cleanup scans |
+| `TRACKING_MAX_ACTIVE_SESSIONS` | `10000` | In-memory active-session cap; excess new sessions are ignored |
+| `TRUSTED_PROXIES` | empty | Comma-separated proxy IPs/CIDRs allowed to supply `CF-Connecting-IP`, `Fly-Client-IP`, `X-Real-IP`, or `X-Forwarded-For` |
+| `HASH_IPS` | `false` | Store/log a keyed SHA-256 IP digest instead of the address |
+| `IP_HASH_SALT` | empty | Secret salt required when `HASH_IPS=true`; never sent to the browser or logged |
+
+Set `TRUSTED_PROXIES` to the actual immediate proxy peer address/ranges for the
+deployment. Uvicorn's automatic proxy-header rewriting is disabled so an
+untrusted caller cannot spoof the address. If the host does not publish stable
+proxy ranges, leave this unset (socket peer is used) or use its documented
+proxy network configuration. The Procfile does not identify a hosting provider;
+all logs are emitted to stdout and can be viewed in the configured platform's
+runtime log viewer.
+
+This implementation is intentionally in-memory: sessions disappear on restart,
+and separate replicas have separate stores. Run a single backend instance for
+coherent sessions, or move state to shared storage if scaling out. Logs contain
+IP data by default and their retention follows the host; consider enabling IP
+hashing with a secret salt and setting host log retention to the shortest
+operationally useful period. Hashed IPs remain potentially linkable data.
+Duration is approximate (heartbeat gaps and failed final beacons affect it);
+NAT/shared networks and IP changes can split or merge apparent users. Browser
+storage restrictions can also cause a new ID. Add this collection to any user
+facing notice and have the wording and retention reviewed for the jurisdictions
+where the service is offered.
+
+Local smoke check: run `python run.py`, open the app in a browser, then inspect
+the terminal running the server. A `session_start` JSON line should appear;
+close/hide the tab and wait at least 75 seconds for `session_end`. To test the
+API directly:
+
+```bash
+curl -i -X POST http://127.0.0.1:8000/api/usage/heartbeat \
+  -H 'Content-Type: application/json' \
+  -d '{"session_id":"local-tab-123"}'
+```
+
 ## Flow
 
 1. **Log in / Sign up** - JWT auth; every user's tasks, survey and history are isolated.

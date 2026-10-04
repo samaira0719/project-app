@@ -52,15 +52,8 @@ SURVEY_SPEC: list[dict[str, Any]] = [
         "blurb": "Be honest - there are no wrong answers.",
         "accent": "sage",
         "questions": [
-            {"key": "stuck_first", "label": "How often do you feel stuck deciding what to do first?",
-             "type": "single", "options": FREQ},
-            {"key": "decision_quality", "label": "How would you rate the quality of your decisions?",
-             "type": "single", "options": ["Very Bad", "Bad", "Average", "Good", "Very Good"]},
             {"key": "delay_start",
              "label": "How often do you delay starting work because you cannot decide where to begin?",
-             "type": "single", "options": FREQ},
-            {"key": "regret",
-             "label": "After finishing a task, how often do you wish you had done a different task first?",
              "type": "single", "options": FREQ},
             {"key": "confidence_after", "label": "How confident do you feel after making a decision?",
              "type": "scale", "low": "Not confident at all", "high": "Extremely confident"},
@@ -87,9 +80,6 @@ SURVEY_SPEC: list[dict[str, Any]] = [
             {"key": "motivator", "label": "What keeps you motivated the most?",
              "type": "single", "options": [
                  "A reward", "A deadline", "Fear of falling behind", "A personal goal", "Others"]},
-            {"key": "when_unsure", "label": "When you're unsure, you usually:",
-             "type": "single", "options": [
-                 "Decide anyway", "Ask someone", "Postpone it", "Keep over-researching"]},
         ],
     },
     {
@@ -128,10 +118,6 @@ SURVEY_SPEC: list[dict[str, Any]] = [
             {"key": "study_peak", "label": "When do you actually focus best?",
              "type": "single", "options": [
                  "Early morning", "Late morning", "Afternoon", "Evening", "Late night"]},
-            {"key": "study_session",
-             "label": "How long can you study before you genuinely need a break?",
-             "type": "single", "options": [
-                 "Under 20 minutes", "20-45 minutes", "45-90 minutes", "Over 90 minutes"]},
             {"key": "deadline_start",
              "label": "How close does a deadline have to be before you start?",
              "type": "single", "options": [
@@ -152,15 +138,6 @@ SURVEY_SPEC: list[dict[str, Any]] = [
             {"key": "exercise_freq", "label": "How often do you exercise?", "type": "single", "options": FREQ},
             {"key": "sleep_hours", "label": "How many hours do you sleep per day on average?",
              "type": "single", "options": ["Less than 4", "4-6", "6-8", "8+"]},
-            {"key": "energy_dip", "label": "When does your energy usually crash?",
-             "type": "single", "options": [
-                 "Mid-morning", "Right after lunch", "Early evening", "Late night",
-                 "It doesn't really crash"]},
-            {"key": "health_blocker",
-             "label": "What actually gets in the way of looking after yourself?",
-             "type": "multi", "options": [
-                 "No time", "No motivation", "Cost", "Nowhere convenient to go",
-                 "Nobody to do it with", "Nothing really"]},
         ],
     },
     {
@@ -172,16 +149,11 @@ SURVEY_SPEC: list[dict[str, Any]] = [
         "depends_on": {"key": "support_areas",
                        "contains_any": ["Motivation", "Confidence"]},
         "questions": [
-            {"key": "unmotivated_freq", "label": "How often do you feel unmotivated?",
-             "type": "single", "options": FREQ},
             {"key": "motivation_dip", "label": "What usually kills your motivation?",
              "type": "multi", "options": [
                  "The task feels too big", "Not sure where to start",
                  "Worried I'll do it badly", "No visible progress",
                  "Comparing myself to others", "Plain boredom"]},
-            {"key": "restart_effort",
-             "label": "Once you've stopped, how hard is it to start again?",
-             "type": "scale", "low": "I pick it straight back up", "high": "Almost impossible"},
             {"key": "self_trust",
              "label": "How much do you trust your own judgement on a close call?",
              "type": "scale", "low": "Not at all", "high": "Completely"},
@@ -249,9 +221,6 @@ SURVEY_SPEC: list[dict[str, Any]] = [
             {"key": "purchase_regret",
              "label": "How often do you regret a purchase afterwards?",
              "type": "single", "options": FREQ},
-            {"key": "budget_clarity",
-             "label": "How clearly do you know what you can afford right now?",
-             "type": "scale", "low": "No idea", "high": "To the rupee"},
         ],
     },
     {
@@ -289,9 +258,6 @@ SURVEY_SPEC: list[dict[str, Any]] = [
              "type": "multi", "options": [
                  "Fear of missing out (FOMO)", "Peer pressure", "Timings",
                  "Transportation", "Social anxiety", "Unsure what I'll enjoy"]},
-            {"key": "ask_friends_freq",
-             "label": "How often do you ask friends for advice before making social decisions?",
-             "type": "single", "options": FREQ},
             {"key": "social_recharge", "label": "After a heavy week, what actually recharges you?",
              "type": "single", "options": [
                  "A big night out", "A few close friends", "Time on my own", "A mix of both"]},
@@ -312,6 +278,17 @@ ALL_QUESTIONS: dict[str, dict[str, Any]] = {
 # silently rather than rejected as "unknown fields". Nothing downstream reads
 # them any more.
 RETIRED_KEYS: frozenset[str] = frozenset({
+    "stuck_first",       # removed from the current survey
+    "decision_quality",  # removed from the current survey
+    "regret",             # removed from the current survey
+    "when_unsure",        # removed from the current survey
+    "study_session",      # removed from the current survey
+    "energy_dip",         # removed from the current survey
+    "health_blocker",     # removed from the current survey
+    "unmotivated_freq",   # removed from the current survey
+    "restart_effort",     # removed from the current survey
+    "budget_clarity",     # removed from the current survey
+    "ask_friends_freq",   # removed from the current survey
     "pending_tasks",      # roughly how many pending tasks per day
     "decide_time",        # how long to decide what to start
     "decision_style",     # decision-making style

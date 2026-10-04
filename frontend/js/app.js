@@ -2,6 +2,7 @@
 
 import { api, ApiError, getToken, setToken } from "./api.js?v=28";
 import { startParticles, stopParticles } from "./particles.js?v=15";
+import { startUsageTracking } from "./usage.js?v=1";
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -3749,6 +3750,7 @@ function bindEvents() {
 }
 
 async function boot() {
+  startUsageTracking();
   bindEvents();
   applyTheme();
   applyAuthMode();

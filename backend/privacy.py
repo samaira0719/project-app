@@ -36,7 +36,7 @@ from __future__ import annotations
 from typing import Any
 
 # Date-stamped so a support ticket can name the exact text that was shown.
-POLICY_VERSION = "2026-09-27"
+POLICY_VERSION = "2026-10-04"
 
 # Scope keys the API will accept. "essential" is not optional - without it
 # there is no account to store anything in, so it is refused at registration
@@ -60,6 +60,7 @@ CONSENT_SCOPES: list[dict[str, Any]] = [
             "The tasks, deadlines and categories you add",
             "Your decision-making survey answers",
             "The options, criteria and ratings inside each decision",
+            "Approximate visible time in the app, using a temporary browser-tab session ID and your IP address (or a one-way hash if configured)",
         ],
         "purpose": (
             "To sign you in, store your work, and compute your priority "
@@ -187,6 +188,17 @@ DATA_PRACTICES: list[dict[str, str]] = [
             "tokens."
         ),
     },
+    {
+        "title": "Basic usage measurement",
+        "body": (
+            "While the app is visible, it sends a heartbeat about every 20 seconds "
+            "to estimate active time and diagnose service usage. The server uses "
+            "your IP address (or a salted one-way hash when configured) and a "
+            "temporary tab session ID. Active session state is held in memory "
+            "until inactivity or a server restart. Lifecycle logs go to the "
+            "hosting platform's normal logs and follow that platform's retention settings."
+        ),
+    },
 ]
 
 
@@ -221,7 +233,8 @@ SUMMARY_LINE = (
     "We collect only what the engine needs to rank your tasks and explain "
     "itself. The learning purpose below is optional and the app works without "
     "it; AVEX (Google Gemini) explanations are on by default and can be "
-    "switched off any time from the Profile tab."
+    "switched off any time from the Profile tab. Basic visible-time usage "
+    "measurement uses a temporary tab ID and IP address (or its configured hash)."
 )
 
 # Decide Well is a personal student project. The full notice says so, and

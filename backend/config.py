@@ -33,6 +33,17 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-flash-latest"
     gemini_timeout_seconds: float = 20.0
 
+    # Usage tracking. Forwarded IP headers are honored only when the direct
+    # peer matches trusted_proxies (CIDRs or exact addresses).
+    tracking_enabled: bool = True
+    session_idle_timeout: int = 60
+    heartbeat_interval: int = 20
+    tracking_cleanup_interval: int = 15
+    tracking_max_active_sessions: int = 10000
+    hash_ips: bool = False
+    ip_hash_salt: str = ""
+    trusted_proxies: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:
