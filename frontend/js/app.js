@@ -2996,13 +2996,10 @@ function auditPanel(audit, behavioralLinks) {
     </details>`;
 }
 
-/* ---- confidence, predicted satisfaction, and the feedback loop ----
+/* ---- recommendation robustness and the feedback loop ----
    Two gauges with different jobs, so they are labelled as different jobs.
-   Confidence is a property of the decision itself and is computed the same
-   way for everybody. Satisfaction is a prediction about *this* user, learned
-   from the decisions they have rated. Both ship their own arithmetic: every
-   note below names the points it contributed and why, so neither number is
-   ever just asserted. */
+   Recommendation robustness describes the decision itself. Satisfaction is
+   collected only after the user acts on the recommendation. */
 
 const BAND_CLASS = {
   "Very high": "band-vhigh", High: "band-high", Moderate: "band-mid",
@@ -3037,7 +3034,7 @@ function gauge(score, label, band) {
 }
 
 function scorePanel(kind, data, title, subtitle) {
-  // Confidence notes are "points out of a maximum"; satisfaction notes are
+  // Robustness notes are "points out of a maximum"; satisfaction notes are
   // signed adjustments to a baseline. Same shape, different reading.
   const signed = kind === "satisfaction";
   return `
@@ -3081,13 +3078,12 @@ const levelDots = (level, max) =>
 
 function assessmentPanel(assessment) {
   if (!assessment) return "";
-  const conf = assessment.confidence;
-  const sat = assessment.satisfaction;
+  const robustness = assessment.recommendation_robustness || assessment.confidence;
   const learning = assessment.learning;
   return `
     <div class="dec-section assess">
       <div class="assess-head">
-        <span class="dec-label" style="margin:0">How much to trust this</span>
+        <span class="dec-label" style="margin:0">Recommendation robustness</span>
         ${learning ? `
           <span class="level-chip" title="${escapeHtml(learning.blurb)}">
             <span class="level-dots">${levelDots(learning.level, learning.max_level)}</span>
@@ -3095,15 +3091,9 @@ function assessmentPanel(assessment) {
           </span>` : ""}
       </div>
       <div class="assess-grid">
-        ${scorePanel("confidence", conf, "Confidence",
-          "How much this recommendation deserves to be trusted, judged on the decision's own structure.")}
-        ${scorePanel("satisfaction", sat, "Predicted satisfaction",
-          "How happy you are likely to be with it, learned from the decisions you have rated.")}
+        ${scorePanel("robustness", robustness, "Recommendation Robustness Score",
+          "How strongly the decision data supports this option, based on the margin, sensitivity, and input quality.")}
       </div>
-      ${learning && !learning.enabled ? `
-        <p class="assess-off">Learning from your decisions is switched off for
-          this account, so the satisfaction estimate cannot adapt to you. You can
-          turn it on under Profile (click your initials, top right).</p>` : ""}
     </div>`;
 }
 
@@ -3116,9 +3106,7 @@ const OUTCOME_OPTIONS = [
 function feedbackPanel(r) {
   const given = r.feedback;
   if (given) {
-    const predicted = given.predicted_satisfaction;
     const actual = given.satisfaction_pct;
-    const error = predicted == null ? null : actual - predicted;
     const label = (OUTCOME_OPTIONS.find((o) => o[0] === given.outcome) || [])[1] || given.outcome;
     return `
       <div class="dec-section fb-card is-done">
@@ -3129,10 +3117,7 @@ function feedbackPanel(r) {
         <p class="fb-recorded">
           You <strong>${escapeHtml(label.toLowerCase())}</strong> and rated it
           <strong>${actual.toFixed(0)}%</strong>.
-          ${predicted == null ? "" : (error === 0
-            ? `We predicted ${predicted.toFixed(0)}% - exactly right.`
-            : `We predicted ${predicted.toFixed(0)}%, so we were off by
-               ${Math.abs(error).toFixed(0)} points; AVEX has corrected for it.`)}
+          This is your post-decision satisfaction rating.
         </p>
         ${given.note ? `<p class="fb-note">${escapeHtml(given.note)}</p>` : ""}
         <button type="button" class="ghost-btn" id="fb-redo">Change my rating</button>

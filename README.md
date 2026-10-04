@@ -4,8 +4,8 @@ A full-stack decision-making companion for students (ages 14-25). Users log in, 
 the User Decision-Making Survey once, add tasks, and the **priority scoring engine**
 ranks them - with **Gemini-powered explanations** of why each decision was made.
 
-Every recommendation carries a **confidence score** and a **predicted satisfaction
-score**, each with the arithmetic behind it. What the user reports back feeds a
+Every recommendation carries a **Recommendation Robustness Score**, with the
+arithmetic behind it. Users can report **post-decision satisfaction** after acting. What they report feeds a
 **reinforcement loop** that retunes the weighting to them over time - opt-in, bounded,
 and fully inspectable.
 
@@ -93,9 +93,9 @@ curl -i -X POST http://127.0.0.1:8000/api/usage/heartbeat \
    to local SQLite if unset).
 5. The engine **auto-ranks** pending tasks; My tasks opens on a "Start with this" card for
    the #1 task, with its reason and a "Why this order?" AI explanation.
-6. Each decision returns a **confidence** and a **predicted satisfaction** percentage,
-   both itemised. Afterwards the user says how it actually went, and that verdict
-   retunes the engine for them - see [The feedback loop](#the-feedback-loop).
+6. Each decision returns an itemised **Recommendation Robustness Score**. Afterwards
+   the user reports how satisfied they were, and that verdict retunes the engine - see
+   [The feedback loop](#the-feedback-loop).
 
 ## Light and dark
 
@@ -183,9 +183,19 @@ level, never lower it below tasks without estimates:
 | Factor | Meaning | Formula |
 |---|---|---|
 | U | Urgency | `2^(-hours_left / 48)` - exponential deadline pressure (Travel uses departure date if earlier); overdue pins to 1 |
-| C | Importance | calibrated per-category weight + survey boosts |
-| E | Effort criticality | critical ratio `est_time / time_left` with a quick-win floor (Study only) |
+| C | Importance | neutral 0.50 starting value + user survey signals |
+| E | Workload pressure | `min(est_time / max(time_left, 0.25h), 1)` with a quick-win floor (Study only) |
 | A | Aging | `1 - 2^(-days_open / 5)` - anti-starvation for old backlog |
+
+**Prototype design parameters.** The base weights are urgency 0.48, importance 0.36,
+and aging 0.16; the effort bonus is 0.15. Urgency and aging half-lives are 48 hours
+and 5 days. These are tunable choices made for this prototype, not established
+scientific constants. They need pilot testing against observed task outcomes.
+
+Category importance does not encode a global ranking of life domains. Every category
+starts at 0.50. Selecting a matching support area adds 0.25; health and career answers
+can add smaller targeted adjustments. Treating a selected support area as a priority
+signal is a provisional design hypothesis, not a validated measure of importance.
 
 **How the survey personalises the engine** (full derivation in
 [backend/scoring.py](backend/scoring.py)):
@@ -196,6 +206,11 @@ level, never lower it below tasks without estimates:
 - "easiest first" / reward-driven users get a stronger quick-win floor
 - every support area picked boosts its matching task category; poor sleep or
   exercise answers nudge Health tasks upward
+
+The effort ratio is capped at 1, and its contribution is a bonus capped at 15
+points before the overall score cap. Overdue tasks use a 0.25-hour minimum denominator
+to avoid division by zero. This term measures workload pressure, not feasibility or
+the probability of completing the task; a ratio above 1 saturates instead of growing.
 
 ## The Eisenhower matrix
 
@@ -214,10 +229,8 @@ urgent    means U >= 0.50  (exactly 48h to the effective deadline)
 important means C >= 0.70  (personalised category importance)
 ```
 
-Both cutoffs are the midpoints of their own scale rather than free parameters: `U = 0.5`
-*is* one deadline half-life, and `C = 0.70` is where the calibrated category table
-separates outcome-bearing categories (Study, Career, Health, Travel) from discretionary
-ones. Each quadrant carries the finding that justifies it, and the *shape* of the grid
+`U = 0.5` corresponds to one deadline half-life. `C = 0.70` is a prototype cutoff,
+not a scientifically established boundary. Each quadrant carries the finding that justifies it, and the *shape* of the grid
 is read back to the user - a full "Delegate" quadrant triggers the mere-urgency warning,
 an empty "Decide" quadrant means nothing was caught before its deadline.
 
@@ -387,15 +400,14 @@ pairs its colour with the word, so nothing is encoded by hue alone. The SVGs are
 measured pixel width and redrawn on resize, so axis text stays legible on a phone instead
 of being scaled down with the viewBox.
 
-## Confidence and predicted satisfaction
+## Recommendation Robustness Score and post-decision satisfaction
 
-Every decision comes back with two percentages, and neither is ever just asserted -
-each ships the arithmetic that produced it, itemised, in the panel under the result.
+Each decision includes an itemised Recommendation Robustness Score. Satisfaction is
+collected only after the user acts on the recommendation.
 
-**Confidence** answers *how much should this recommendation be trusted*. It is a
-property of the decision itself, computed identically for every user, so two
-confidence scores are directly comparable and a brand-new account gets a real one on
-day one. Five components, weighted:
+**Recommendation Robustness Score** describes how strongly the decision data supports
+the recommended option. It is a property of the recommendation, not a measure of how
+confident the user feels. Five components are weighted:
 
 | Component | Max | What it measures |
 |---|---|---|
@@ -405,20 +417,14 @@ day one. Five components, weighted:
 | Breadth of the criteria | 15 | Number of criteria (60%) and how evenly the weight is spread across them - a normalised Herfindahl index (40%). |
 | Profile & history behind it | 10 | Whether the survey is on file, plus how much learned history stands behind the weighting. |
 
-**Predicted satisfaction** answers a different question - *how happy is this
-particular user likely to be with it* - and is learned rather than computed. It starts
-from a 60% population baseline, moves to the user's own average once they have rated a
-few decisions, and is then adjusted for how clear-cut the win is, whether it rests on
-criteria their history says they value, who supplied the ratings, how often they act on
-recommendations at all, and a learned correction for past over- or under-prediction.
+**Post-decision satisfaction** is the user's own rating, collected after the decision.
+It is an observed outcome, not a prediction. It contributes to the feedback loop, but
+the app has no validated model that predicts future satisfaction. Building and
+validating such a model with enough longitudinal data is future work.
 
-The two are kept apart on purpose. A structurally excellent decision can still be one
-the user ends up unhappy with, and collapsing both into a single "score" would hide
-exactly the case worth knowing about.
-
-Both are **frozen** onto the decision when it is made (`task_decisions.assessment`)
-rather than recomputed on read. Comparing what was predicted then against what the user
-reports now is the entire calibration signal.
+A structurally strong recommendation can still leave the user dissatisfied. The
+robustness score is frozen onto the decision when it is made
+(`task_decisions.assessment`); satisfaction is recorded only after the user reports it.
 
 ## The feedback loop
 
@@ -511,7 +517,7 @@ GDPR; India's DPDP Act 2023 ss. 5-6; the CCPA/CPRA notice-at-collection duty):
 | Scope | Required | If declined |
 |---|---|---|
 | `essential` | yes | No account; close it instead. |
-| `personalization` | no | Nothing is recorded and nothing is learned. The survey-tuned engine and the full confidence score still work. |
+| `personalization` | no | Nothing is recorded and nothing is learned. The survey-tuned engine and the full recommendation robustness score still work. |
 | `ai_processing` | no | No task text is sent to Google. The assistant answers from the built-in matcher, insights come from the engine, and you rate options yourself. |
 
 Bumping `POLICY_VERSION` in [backend/privacy.py](backend/privacy.py) re-prompts

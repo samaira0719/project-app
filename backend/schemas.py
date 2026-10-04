@@ -294,8 +294,8 @@ class DecisionOut(BaseModel):
     audit: dict | None = None
     # Behavioural-science correlations for this specific decision.
     behavioral: list[dict] = []
-    # Confidence + predicted satisfaction, each with an itemised audit of the
-    # points that made it up (see feedback.assess).
+    # Recommendation robustness with an itemised audit of its points
+    # (see feedback.assess); satisfaction is collected after the decision.
     assessment: dict | None = None
     # The user's own verdict once they have given one.
     feedback: dict | None = None

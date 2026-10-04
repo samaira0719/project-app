@@ -48,16 +48,23 @@ x   ≥ 5D / w_j                         smallest rating error that flips the wi
 | Factor | Formula | Principle | Link |
 |---|---|---|---|
 | **U – Urgency** | `U = 2^(−hours_left / 48)`, overdue → 1 | Exponential decay, 48-hour half-life | [Exponential decay](https://en.wikipedia.org/wiki/Exponential_decay) |
-| **C – Importance** | category base + 0.08 per chosen focus area | Utility calibration | — |
-| **E – Effort** | `E = estimated_time / time_left` | Critical-ratio rule (operations research) | [Job-shop scheduling](https://en.wikipedia.org/wiki/Job-shop_scheduling) |
+| **C – Importance** | neutral 0.50 + 0.25 per matching user-selected support area | Prototype personalization hypothesis; pilot validation needed | — |
+| **E – Workload pressure** | `E = max(min(estimate / max(time_left, 0.25h), 1), quick_win × 2^(−estimated_hours))` | Capped prototype heuristic; not a feasibility estimate | — |
 | **A – Aging** | `A = 1 − 2^(−days_open / 5)` | Anti-starvation aging (OS schedulers) | [Aging](https://en.wikipedia.org/wiki/Aging_%28scheduling%29) |
 
 **Master priority formula:**
 
 ```
 S = 100 × (w_U·U + w_C·C + w_A·A) + 100 × w_E·E        (capped at 100)
-Base weights: w_U = 0.48, w_C = 0.36, w_A = 0.16, w_E = 0.15 (bonus only)
+Prototype design parameters: w_U = 0.48, w_C = 0.36, w_A = 0.16,
+w_E = 0.15 (bonus only). These are tunable initial choices, not scientific constants.
+Urgency half-life = 48 hours; aging half-life = 5 days. Pilot testing is needed.
 ```
+
+All categories start at neutral importance 0.50; the previous fixed category ranking
+has been removed. A selected support area adds 0.25 to its matching category. This is
+a provisional assumption that need for support indicates priority, and should be
+validated with student outcomes and direct user feedback.
 
 ### 1.3 Statistics and learning-curve science (measuring improvement)
 
@@ -239,7 +246,7 @@ flowchart TB
 5. The server calculates U, C, E, A for every task and shows a **ranked list**, an
    **Eisenhower matrix** and an **"Up Next"** card.
 6. User opens a task → lists options → weights criteria 1–5 → rates each option.
-7. Presses **"Decide for me"** → gets the winner, a confidence %, a predicted satisfaction %
+7. Presses **"Decide for me"** → gets the winner and Recommendation Robustness Score; satisfaction is rated after the decision
    and an **Audit** showing exactly how the score was built.
 8. After acting, reports back (followed / adapted / rejected + stars) → the app adjusts
    itself slightly for next time.
@@ -263,7 +270,7 @@ flowchart TD
     ADD --> CAT{Category = Study?}
     CAT -->|Yes| EST[Also enter time estimate]
     CAT -->|No| CALC
-    EST --> CALC[For each task compute:<br/>U = 2^-h/48<br/>C = category base + boosts<br/>E = est/time left<br/>A = 1 - 2^-d/5]
+    EST --> CALC[For each task compute:<br/>U = 2^-h/48<br/>C = neutral 0.50 + user survey adjustments<br/>E = est/time left<br/>A = 1 - 2^-d/5]
     CALC --> SC[S = 100·wU·U + wC·C + wA·A + 100·wE·E]
     SC --> QD[Place in matrix:<br/>Urgent if U ≥ 0.5 or E ≥ 0.8<br/>Important if C ≥ 0.7]
     QD --> SORT[Sort tasks by S, show list + matrix]
@@ -290,7 +297,8 @@ FOR each pending task:
     hours_left = deadline − now
     U = 1 if overdue else 2^(−hours_left / 48)
     C = category_base + 0.08 × (matching focus areas)
-    E = estimated_time / time_left     (Study tasks only, else 0)
+    E = max(min(estimated_hours / max(hours_left, 0.25), 1),
+            quick_win * 2^(-estimated_hours))  (Study with estimate, else 0)
     A = 1 − 2^(−days_open / 5)
     S = 100(0.48·U + 0.36·C + 0.16·A) + 100(0.15·E)
     IF task already decided: S = S + 4          (momentum bonus)
@@ -332,11 +340,11 @@ Database tables are created automatically on first start — no manual setup.
 
 | Level | What is calibrated | Values |
 |---|---|---|
-| **Engine (fixed)** | Base weights | Urgency 0.48, Importance 0.36, Aging 0.16, Effort bonus 0.15 |
+| **Prototype design parameters** | Base weights | Urgency 0.48, Importance 0.36, Aging 0.16, Effort bonus 0.15; tunable starting choices, not established constants |
 | | Half-lives | Urgency 48 h, Aging 5 days |
-| | Category importance | Study 0.90, Career 0.85, Health 0.80, Travel 0.70, Personal 0.60, Purchases 0.50, Other 0.45, Entertainment 0.35 |
-| **User (survey)** | Personal weights | e.g. deadline-driven → urgency up; each focus area → +0.08 importance |
-| **Decision (each time)** | Criteria weights 1–5 and ratings 1–5 | Unrated options default to 3 → confidence drops sharply |
+| | Category importance | Neutral 0.50 initialization for every category |
+| **User (survey)** | Personal weights | e.g. deadline-driven → urgency up; selected support area → +0.25 for its category (provisional proxy) |
+| **Decision (each time)** | Criteria weights 1–5 and ratings 1–5 | Unrated options default to 3 → recommendation robustness drops |
 | **Learning (continuous)** | Multipliers θ | Clamped to [0.65, 1.55], trust = n/(n+12) |
 
 **Learning levels shown to the user:**

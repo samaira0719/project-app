@@ -19,12 +19,13 @@ lower a task. All factors are normalised to [0, 1]:
       "due in 2h" and "due in 10h" matters far more than "due in 6 vs 7 days".
 
   C - Category importance.
-      A calibrated base weight per category, personalised by the
-      User Decision-Making Survey (see below).
+      A neutral initialization, adjusted by this user’s survey signals.
 
   E - Effort criticality (Study tasks with a time estimate).
-      The critical ratio r = estimated_time / time_remaining. If r >= 1 you
-      no longer have enough time - maximum criticality. A short "quick win"
+      The critical ratio is estimated_hours / max(hours_remaining, 0.25).
+      It is capped at 1, so an impossible task saturates at maximum workload
+      pressure instead of producing an unbounded bonus. This is not a
+      completion-feasibility estimate. A short "quick win"
       floor keeps sub-30-minute tasks from disappearing at the bottom:
           E = max( min(r, 1), quick_win * 2^(-estimated_hours) )
       For tasks without an estimate E = 0 (no alarm, no bonus).
@@ -35,7 +36,9 @@ lower a task. All factors are normalised to [0, 1]:
 
 How the survey personalises the model
 -------------------------------------
-Weights (base wU=0.48, wC=0.36, wA=0.16; effort bonus 0.15, quick-win 0.30):
+Prototype design parameters (base wU=0.48, wC=0.36, wA=0.16; effort
+bonus 0.15, quick-win 0.30). These are tunable starting choices, not
+scientific constants:
 
   * motivator "A deadline" / "Fear of falling behind", or handling many
     tasks by doing "the most urgent" raises the urgency weight
@@ -48,7 +51,9 @@ Weights (base wU=0.48, wC=0.36, wA=0.16; effort bonus 0.15, quick-win 0.30):
     engine hands them small wins to build momentum)
   * valuing "Time required" raises the effort bonus
 
-Category importance:
+Category importance starts at 0.50 for every category. User-reported support
+areas add 0.25 to the matching category; this treats a selected area as a
+provisional priority signal, a design hypothesis that needs pilot validation.
 
   * every area picked in support_areas boosts its matching category
     (Studies to Study, Career to Career, Health to Health, Travel Planning
@@ -90,10 +95,8 @@ the grid and the ranking can never disagree - they read the same numbers.
                   task is urgent even if the deadline still looks far off)
     important  means  C >= 0.70 (personalised category importance)
 
-Both cutoffs are the natural midpoints of their own scale rather than free
-parameters: U = 0.5 *is* one deadline half-life, and C = 0.70 is where the
-calibrated category table separates outcome-bearing categories (Study,
-Career, Health, Travel) from discretionary ones.
+U = 0.5 corresponds to one deadline half-life. C = 0.70 is a prototype
+cutoff, not an established scientific boundary.
 """
 
 from __future__ import annotations
@@ -107,14 +110,10 @@ DEADLINE_HALF_LIFE_HOURS = 48.0
 AGING_HALF_LIFE_DAYS = 5.0
 
 CATEGORY_BASE_IMPORTANCE: dict[str, float] = {
-    "Study": 0.90,
-    "Career": 0.85,
-    "Health": 0.80,
-    "Travel": 0.70,
-    "Personal": 0.60,
-    "Purchases": 0.50,
-    "Other": 0.45,
-    "Entertainment": 0.35,
+    category: 0.50 for category in (
+        "Study", "Career", "Health", "Travel", "Personal", "Purchases",
+        "Other", "Entertainment",
+    )
 }
 
 SUPPORT_AREA_TO_CATEGORY: dict[str, str] = {
@@ -127,7 +126,9 @@ SUPPORT_AREA_TO_CATEGORY: dict[str, str] = {
     "Entertainment": "Entertainment",
     "Managing Time": "Personal",
 }
-FOCUS_BOOST = 0.08
+# Prototype parameter: a support-area response is a provisional user-derived
+# signal, not a validated measure of category importance.
+FOCUS_BOOST = 0.25
 
 BASE_CORE_WEIGHTS = {"urgency": 0.48, "importance": 0.36, "aging": 0.16}
 BASE_EFFORT_BONUS = 0.15
@@ -146,7 +147,7 @@ QUADRANT_KEYS = ("do", "schedule", "delegate", "eliminate")
 
 @dataclass
 class Personalization:
-    """Weights derived from the survey, plus notes explaining each change."""
+    """Prototype weights adjusted by survey signals, with an audit trail."""
 
     core: dict[str, float]
     effort_bonus: float

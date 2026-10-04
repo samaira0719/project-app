@@ -24,7 +24,7 @@ ss. 5-6; and the CCPA/CPRA notice-at-collection duty):
   * Demonstrable - every grant and withdrawal is appended to consent_records
     with the exact policy version, so the account can prove what it agreed
     to and when (Art. 7(1)).
-  * Age - the product is aimed at 14-30s. Anyone under 16 is asked to
+  * Age - the product is aimed at 14-25s. Anyone under 16 is asked to
     confirm they have a parent or guardian's permission (Art. 8).
 
 Bumping POLICY_VERSION re-prompts everyone: the /api/privacy/consent
@@ -225,7 +225,7 @@ YOUR_RIGHTS: list[dict[str, str]] = [
 ]
 
 AGE_NOTICE = (
-    "Decide Well is built for ages 14-30. If you are under 14, please confirm "
+    "Decide Well is built for ages 14-25. If you are under 14, please confirm "
     "a parent or guardian is happy for you to use it before you continue."
 )
 

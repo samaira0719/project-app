@@ -506,7 +506,8 @@ button:focus-visible {
   border-bottom: 1px solid var(--line);
   position: sticky; top: 0; z-index: 20;
 }
-.app-brand { display: flex; align-items: center; gap: 10px; }
+.app-brand { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.brand-tagline { color: var(--muted); font-size: .68rem; line-height: 1.2; letter-spacing: .015em; white-space: nowrap; }
 .app-nav { display: flex; gap: 2px; flex: 1; justify-content: center; flex-wrap: wrap; }
 .app-nav button {
   border: none; background: transparent;

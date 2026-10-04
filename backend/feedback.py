@@ -1,4 +1,4 @@
-"""The feedback loop: reward, credit, policy update, confidence, satisfaction.
+"""The feedback loop: reward, credit, policy update, robustness, satisfaction.
 
 WHAT THIS IS
 ------------
@@ -50,7 +50,7 @@ CONSENT
 Everything here is gated on the personalization scope (privacy.py). With that
 consent off, no Interaction is written, no policy is updated, and `assess`
 falls back to the population prior. The decision engine itself is unaffected -
-the user still gets the survey-tuned result and the full confidence score.
+the user still gets the survey-tuned result and the full recommendation robustness score.
 """
 
 from __future__ import annotations
@@ -409,8 +409,8 @@ def record_decision_feedback(
 ) -> dict[str, Any]:
     """The explicit feedback path: store it, reward it, recalibrate on it."""
     assessment = decision.assessment or {}
-    predicted_satisfaction = (assessment.get("satisfaction") or {}).get("score")
-    predicted_confidence = (assessment.get("confidence") or {}).get("score")
+    predicted_satisfaction = None
+    predicted_confidence = (assessment.get("recommendation_robustness") or assessment.get("confidence") or {}).get("score")
     reward = reward_for_feedback(outcome, satisfaction)
 
     row = db.scalar(
@@ -451,11 +451,6 @@ def record_decision_feedback(
         policy.follow_rate, 1.0 if outcome == "followed" else 0.0,
         policy.rated_decisions,
     )
-    if predicted_satisfaction is not None:
-        error = actual - predicted_satisfaction / 100.0
-        policy.calibration_bias = _clip(
-            _ema(policy.calibration_bias, error, policy.rated_decisions), -0.25, 0.25
-        )
     policy.rated_decisions += 1
     policy.events += 1
     policy.cumulative_reward = round(policy.cumulative_reward + reward, 4)
@@ -468,7 +463,7 @@ def record_decision_feedback(
             "outcome": outcome,
             "satisfaction": satisfaction,
             "chosen_option": row.chosen_option,
-            "predicted_satisfaction": predicted_satisfaction,
+            "predicted_satisfaction": None,
             "predicted_confidence": predicted_confidence,
         },
         reward=reward,
@@ -481,20 +476,17 @@ def record_decision_feedback(
         "reward": reward,
         "learned": True,
         "changes": changes,
-        "calibration_error_pts": (
-            round(actual * 100 - predicted_satisfaction, 1)
-            if predicted_satisfaction is not None else None
-        ),
+        "calibration_error_pts": None,
     }
 
 
 # ======================================================================
-#  CONFIDENCE and SATISFACTION
+#  RECOMMENDATION ROBUSTNESS and SATISFACTION
 #
 #  Two different questions, deliberately kept apart:
 #
-#    Confidence  - how much should this recommendation be trusted? A
-#                  property of the decision's own structure: how far ahead
+#    Recommendation robustness - how strongly the system supports this
+#                  option based on the decision's structure: how far ahead
 #                  the winner is, how much a wrong rating would matter, how
 #                  good the inputs were. Computed the same way for everyone;
 #                  no history required, so it works on day one.
@@ -507,7 +499,7 @@ def record_decision_feedback(
 #  the points it contributed, the points available, and why.
 # ======================================================================
 
-CONFIDENCE_COMPONENTS = (
+ROBUSTNESS_COMPONENTS = (
     ("separation", 30.0, "Lead over the runner-up"),
     ("robustness", 25.0, "Survives being wrong"),
     ("evidence", 20.0, "Quality of the inputs"),
@@ -628,10 +620,10 @@ def _fit(survey: dict | None, state: dict) -> tuple[float, str]:
     return sub, why
 
 
-def confidence(
+def recommendation_robustness(
     result: dict, audit: dict | None, survey: dict | None, state: dict
 ) -> dict[str, Any]:
-    """How much this specific recommendation deserves to be trusted, 0-100."""
+    """How robustly the decision data supports this recommendation, 0-100."""
     subs = {
         "separation": _separation(result),
         "robustness": _robustness(audit),
@@ -642,7 +634,7 @@ def confidence(
 
     notes: list[dict[str, Any]] = []
     total = 0.0
-    for key, maximum, label in CONFIDENCE_COMPONENTS:
+    for key, maximum, label in ROBUSTNESS_COMPONENTS:
         sub, why = subs[key]
         points = round(sub * maximum, 1)
         total += points
@@ -662,7 +654,7 @@ def confidence(
         **_band(score),
         "notes": notes,
         "headline": (
-            f"{score:.0f}% confidence - {_band(score)['label'].lower()}. "
+            f"{score:.0f}% recommendation robustness - {_band(score)['label'].lower()}. "
             f"Weakest link: {weakest['label'].lower()} "
             f"({weakest['points']:.0f} of {weakest['max']:.0f} points)."
         ),
@@ -670,124 +662,7 @@ def confidence(
         "method": (
             "Weighted sum of five independent checks on the decision itself, "
             "not on how it feels. Same formula for every user, so two "
-            "confidence scores are directly comparable."
-        ),
-    }
-
-
-SATISFACTION_PRIOR = 0.60
-
-
-def satisfaction(
-    result: dict,
-    audit: dict | None,
-    state: dict,
-    credit: dict[str, float],
-) -> dict[str, Any]:
-    """Predicted satisfaction with this call, 0-100, learned per user."""
-    notes: list[dict[str, Any]] = []
-
-    def add(label: str, delta: float, why: str) -> None:
-        notes.append({
-            "label": label, "points": round(delta * 100, 1), "why": why,
-        })
-
-    # --- prior ---
-    if state["enabled"] and state["rated_decisions"] > 0:
-        value = state["satisfaction_mean"]
-        add("Your baseline", value, (
-            f"Across {state['rated_decisions']} decisions you have rated, your "
-            f"average satisfaction is {value * 100:.0f}%."
-        ))
-    else:
-        value = SATISFACTION_PRIOR
-        add("Starting baseline", value, (
-            "No rated decisions yet, so this starts at the 60% population "
-            "baseline and moves to your own average once you rate a few."
-        ))
-
-    # --- how clear-cut the call is: close calls breed second-guessing ---
-    separation_sub, _ = _separation(result)
-    delta = 0.12 * (2 * separation_sub - 1)
-    value += delta
-    add("Clarity of the win", delta, (
-        "A decisive lead removes the lingering 'but what about the other one'; "
-        "a near-tie invites it. ±12 points at the extremes."
-    ))
-
-    # --- does the win come from the criteria this user actually cares about ---
-    alignment = sum(
-        (state["tags"].get(tag, 1.0) - 1.0) * share for tag, share in (credit or {}).items()
-    )
-    if state["enabled"] and abs(alignment) > 1e-6:
-        delta = _clip(alignment * 0.8, -0.15, 0.15)
-        value += delta
-        top = max(credit.items(), key=lambda kv: kv[1])[0] if credit else "its criteria"
-        add("Fit with what you value", delta, (
-            f"This win is driven mostly by {TAG_LABELS.get(top, top)}, which "
-            f"your feedback history weights "
-            f"{'above' if alignment > 0 else 'below'} average."
-        ))
-
-    # --- who produced the ratings ---
-    source = result.get("ratings_source", "manual")
-    if source == "manual":
-        value += 0.05
-        add("You set the ratings", 0.05,
-            "People are measurably happier with a call built on their own numbers.")
-    elif source == "engine":
-        value -= 0.15
-        add("Placeholder ratings", -0.15,
-            "Every rating defaulted to a neutral 3, so the result is not yet "
-            "a real comparison.")
-
-    # --- revealed tendency to follow advice ---
-    if state["enabled"] and state["rated_decisions"] >= 3:
-        delta = _clip(0.10 * (state["follow_rate"] - 0.5) * 2, -0.10, 0.10)
-        value += delta
-        add("How you use recommendations", delta, (
-            f"You follow the recommendation {state['follow_rate'] * 100:.0f}% of "
-            "the time; people who act on a call report more satisfaction with it."
-        ))
-
-    # --- learned calibration correction ---
-    if state["enabled"] and abs(state["calibration_bias"]) > 0.005:
-        delta = state["calibration_bias"]
-        value += delta
-        add("Calibration correction", delta, (
-            f"Past predictions for you have run "
-            f"{'low' if delta > 0 else 'high'} by "
-            f"{abs(delta) * 100:.0f} points on average; corrected here."
-        ))
-
-    score = round(_clip(value, 0.05, 0.95) * 100, 1)
-    if state["rated_decisions"] >= 5:
-        basis = (
-            f"Learned from your {state['rated_decisions']} rated decisions "
-            f"(level {state['level']}/{state['max_level']})."
-        )
-    elif state["enabled"]:
-        basis = (
-            f"Mostly the population baseline so far - {state['rated_decisions']} "
-            "of the 5 rated decisions needed before this is really yours."
-        )
-    else:
-        basis = (
-            "Population baseline only. Learning from your decisions is switched "
-            "off for this account, so this cannot adapt to you."
-        )
-
-    return {
-        "score": score,
-        **_band(score),
-        "notes": notes,
-        "headline": f"{score:.0f}% predicted satisfaction. {basis}",
-        "basis": basis,
-        "method": (
-            "A prior for this user, adjusted by how clear-cut the win is, "
-            "whether it rests on criteria they value, who supplied the "
-            "ratings, and a learned correction for past over- or "
-            "under-prediction. Every rating you give moves it."
+            "robustness scores are directly comparable."
         ),
     }
 
@@ -801,8 +676,7 @@ def assess(
     """Both scores plus the credit trace, ready to store on the decision."""
     credit = credit_from_audit(audit)
     return {
-        "confidence": confidence(result, audit, survey, state),
-        "satisfaction": satisfaction(result, audit, state, credit),
+        "recommendation_robustness": recommendation_robustness(result, audit, survey, state),
         "credit": credit,
         "learning": {
             "enabled": state["enabled"],
