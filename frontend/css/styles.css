@@ -3539,3 +3539,13 @@ body.eis-dragging .eis-cell:not(.drop-target) { opacity: .78; }
 /* The in-modal "What" step reuses the home form's chips and input. */
 .what-date { max-width: 240px; }
 #modal-body .ask-group { margin-top: 16px; }
+
+
+/* ---- single-tick sign-up consent ---- */
+.consent-single-details { margin: 6px 0 10px; padding-left: 4px; }
+.consent-scope-mini { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 0; border-top: 1px dashed var(--line); }
+.consent-scope-mini:first-child { border-top: 0; }
+.consent-mini-title { font-size: .86rem; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+.consent-scope-mini .consent-more { margin: 0; }
+.consent-scope-mini .consent-detail-wrap { flex-basis: 100%; }
+.consent-age-note { display: block; margin: 8px 0 0; font-size: .8rem; color: var(--ink-2); }

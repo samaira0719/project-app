@@ -260,32 +260,62 @@ function renderConsent() {
     </div>
     <p class="consent-lead">${escapeHtml(notice.summary)}</p>
 
-    ${notice.scopes.filter((scope) => scope.at_signup !== false).map(consentScopeRow).join("")}
+    <!-- One tick covers everything asked at sign-up: the core service, the
+         age self-declaration and letting the app learn from decisions. Each
+         purpose still has its own "What this means" disclosure below, and
+         the optional ones can be switched off any time from Profile. -->
+    <div class="consent-scope is-required consent-single">
+      <label class="consent-row">
+        <input type="checkbox" data-consent="all" data-required="1" />
+        <span class="consent-box" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"
+            fill="none" stroke="currentColor" stroke-width="2.6"
+            stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="consent-text">
+          <span class="consent-title">
+            <svg class="consent-ico" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="${CONSENT_ICONS.essential}" fill="none" stroke="currentColor"
+                    stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/>
+            </svg>
+            <span class="consent-title-text">I agree and I am 14 or over</span>
+            <em class="consent-flag">Required</em>
+          </span>
+          <span class="consent-summary">
+            I accept the privacy notice, confirm I am 14 or over (or a parent or
+            guardian agrees), and let Decidly learn from how my decisions turn out
+            to tune its suggestions to me. The learning part can be switched off
+            any time in Profile.
+          </span>
+        </span>
+      </label>
+    </div>
 
-    <label class="consent-row consent-age">
-      <input type="checkbox" data-consent="age_confirmed" data-required="1" />
-      <span class="consent-box" aria-hidden="true">
-        <svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"
-          fill="none" stroke="currentColor" stroke-width="2.6"
-          stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </span>
-      <span class="consent-text">
-        <span class="consent-title">
-          <span class="consent-title-text">I am 14 or over</span>
-          <em class="consent-flag">Required</em></span>
-        <span class="consent-summary">${escapeHtml(notice.age_notice)}</span>
-      </span>
-    </label>
+    <div class="consent-single-details">
+      ${notice.scopes.filter((scope) => scope.at_signup !== false).map((scope) => `
+        <div class="consent-scope-mini">
+          <span class="consent-mini-title">${escapeHtml(scope.title)}
+            <em class="consent-flag">${scope.required ? "Required" : "Optional"}</em></span>
+          <button type="button" class="consent-more" data-more="${escapeHtml(scope.key)}"
+                  aria-expanded="false">What this means</button>
+          <div class="consent-detail-wrap hidden" data-detail="${escapeHtml(scope.key)}">
+            ${consentScopeDetails(scope)}
+          </div>
+        </div>`).join("")}
+      <p class="consent-summary consent-age-note">${escapeHtml(notice.age_notice)}</p>
+    </div>
 
     <button type="button" class="consent-more consent-more--all" id="consent-full"
             aria-haspopup="dialog">Read how we handle your data</button>`;
 
   // Re-apply whatever was already ticked, so switching between login and
-  // sign-up does not silently drop the user's answers.
-  $$("#auth-consent input[type=checkbox]").forEach((box) => {
-    box.checked = !!state.consent[box.dataset.consent];
-  });
+  // sign-up does not silently drop the user's answer.
+  const box = $("#auth-consent input[data-consent='all']");
+  if (box) box.checked = consentComplete();
 }
+
+/** The sign-up fields the single tick stands for. */
+const SINGLE_TICK_FIELDS = ["privacy", "personalization", "age_confirmed"];
 
 function consentComplete() {
   return state.consent.privacy && state.consent.age_confirmed;
@@ -296,7 +326,11 @@ function bindConsent() {
   root.addEventListener("change", (event) => {
     const box = event.target.closest("input[type=checkbox]");
     if (!box) return;
-    state.consent[box.dataset.consent] = box.checked;
+    if (box.dataset.consent === "all") {
+      SINGLE_TICK_FIELDS.forEach((field) => { state.consent[field] = box.checked; });
+    } else {
+      state.consent[box.dataset.consent] = box.checked;
+    }
     box.closest(".consent-scope, .consent-age")
       ?.classList.toggle("is-missing", !!box.dataset.required && !box.checked);
     $("#auth-error").classList.add("hidden");
@@ -524,9 +558,7 @@ async function handleAuthSubmit(event) {
       box.closest(".consent-scope, .consent-age")
         ?.classList.toggle("is-missing", !box.checked);
     });
-    errorEl.textContent = state.consent.privacy
-      ? "Please confirm your age to continue."
-      : "Please accept the privacy notice to create an account.";
+    errorEl.textContent = "Please tick the box to agree before creating an account.";
     errorEl.classList.remove("hidden");
     $("#auth-consent").scrollIntoView({ behavior: "smooth", block: "nearest" });
     return;
