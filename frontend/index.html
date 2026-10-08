@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Decide Well - Student Decision Lab</title>
+  <title>Decidly - Student Decision Lab</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Sora:wght@600;700;800&family=Fraunces:ital,opsz,wght@1,9..144,500;1,9..144,600&display=swap" rel="stylesheet" />
@@ -36,7 +36,7 @@
         <div class="brand-mark">
           <!-- The auth shell is dark in both themes, so it always takes the
                light-on-dark cut of the mark. -->
-          <img src="/static/assets/logo-dark.png" alt="Decide Well" class="brand-logo" />
+          <img src="/static/assets/logo-dark.png" alt="Decidly" class="brand-logo" />
         </div>
         <button type="button" class="about-btn" id="about-btn">About Us</button>
       </header>
@@ -141,7 +141,7 @@
       <div class="app-brand">
         <!-- Two cuts of the same mark; the CSS shows whichever suits the
              active theme, since the navy wordmark vanishes on a dark header. -->
-        <img src="/static/assets/logo.png" alt="Decide Well" class="logo-img logo-img--light" />
+        <img src="/static/assets/logo.png" alt="Decidly" class="logo-img logo-img--light" />
         <img src="/static/assets/logo-dark.png" alt="" aria-hidden="true" class="logo-img logo-img--dark" />
         <span class="brand-tagline">Your Everyday Decision Lab</span>
       </div>
@@ -253,6 +253,31 @@
             </div>
           </div>
 
+          <!-- Only Study asks for an estimate: the effort factor needs it, and
+               the server rejects a Study task without one. -->
+          <div class="ask-group hidden" id="ask-estimate-group">
+            <span class="ask-label" id="ask-estimate-label">Roughly how long will it take?</span>
+            <div class="ask-chips" id="ask-estimate" role="radiogroup" aria-labelledby="ask-estimate-label">
+              <button type="button" role="radio" aria-checked="false" data-min="15">15 min</button>
+              <button type="button" role="radio" aria-checked="false" data-min="30">30 min</button>
+              <button type="button" role="radio" aria-checked="false" data-min="60">1 hour</button>
+              <button type="button" role="radio" aria-checked="false" data-min="120">2 hours</button>
+              <button type="button" role="radio" aria-checked="false" data-min="240">Half a day</button>
+              <button type="button" role="radio" aria-checked="false" data-min="480">A full day+</button>
+            </div>
+          </div>
+
+          <!-- The user-derived half of the importance factor. This is what the
+               "important" axis of the grid reads, not a fixed category rank. -->
+          <div class="ask-group">
+            <span class="ask-label" id="ask-imp-label">How much does this matter to you?</span>
+            <div class="ask-chips" id="ask-importance" role="radiogroup" aria-labelledby="ask-imp-label">
+              <button type="button" role="radio" aria-checked="false" data-imp="1">A little</button>
+              <button type="button" role="radio" aria-checked="true" data-imp="3" class="sel">Somewhat</button>
+              <button type="button" role="radio" aria-checked="false" data-imp="5">A lot</button>
+            </div>
+          </div>
+
           <div class="ask-group">
             <span class="ask-label" id="ask-when-label">When do you need to decide?</span>
             <div class="ask-chips" id="ask-when" role="radiogroup" aria-labelledby="ask-when-label">
@@ -360,7 +385,7 @@
 
     </main>
 
-    <footer class="app-footer">decidewell · helping you make better decisions</footer>
+    <footer class="app-footer">decidly · helping you make better decisions</footer>
 
     <!-- ============ AVEX ASSISTANT ============
          Lives inside #app-shell so it exists only for a signed-in user; the

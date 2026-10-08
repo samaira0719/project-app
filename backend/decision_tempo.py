@@ -10,12 +10,14 @@ Both are trend questions on short, noisy, unevenly spaced series, so the
 statistics are chosen to survive exactly that. None of it is invented here;
 each step is a published result doing the job it was published for.
 
-  Hick-Hyman law            RT = a + b * log2(n + 1)
-      Choice reaction time grows with the logarithm of the number of
-      alternatives, so a five-option decision is *expected* to take longer
-      than a two-option one. Every latency is divided by log2(options + 1)
-      before anything else touches it, otherwise the metric would mostly be
-      measuring how many options someone typed.
+  Number of options         recorded as a covariate, not divided away
+      A decision with more alternatives can reasonably take longer, but this
+      is a deliberation task (weighted criteria, subjective ratings, written
+      explanations), not the choice reaction-time setting Hick-Hyman was
+      measured in. Dividing by log2(n + 1) would assert a "fair" normalised
+      time the evidence does not support. So the raw deliberation time is
+      trended, and the median option count per bucket is reported alongside
+      it as a control variable the reader can weigh for themselves.
 
   Power law of practice     T = a * N^(-b)
       Newell & Rosenbloom's result that time-on-task falls as a power of the
@@ -91,16 +93,6 @@ class DecisionEvent:
 # ---------------------------------------------------------------------------
 # Statistics
 # ---------------------------------------------------------------------------
-
-
-def hick_normalise(seconds: float, options: int) -> float:
-    """Seconds per unit of choice difficulty (Hick-Hyman).
-
-    Dividing by log2(n + 1) puts a two-option decision and an eight-option one
-    on the same axis, so a rising trend means the student really is slowing
-    down rather than simply comparing more things.
-    """
-    return seconds / math.log2(max(options, 2) + 1)
 
 
 def theil_sen(xs: list[float], ys: list[float]) -> float:
@@ -299,6 +291,27 @@ def clean(events: Iterable[DecisionEvent]) -> list[DecisionEvent]:
 # ---------------------------------------------------------------------------
 
 
+def _options_covariate(timed: list[DecisionEvent]) -> dict | None:
+    """Summarise the number of options per decision as a control variable."""
+    if not timed:
+        return None
+    counts = [float(e.options) for e in timed]
+    half = len(counts) // 2
+    first = median(counts[:half]) if half else counts[0]
+    last = median(counts[half:]) if half else counts[-1]
+    return {
+        "median": round(median(counts), 1),
+        "min": int(min(counts)),
+        "max": int(max(counts)),
+        "first_half_median": round(first, 1),
+        "second_half_median": round(last, 1),
+        "note": (
+            "Recorded as a covariate. Times are not normalised by option "
+            "count; read the speed trend against this drift."
+        ),
+    }
+
+
 def compute_tempo(
     events: Iterable[DecisionEvent],
     granularity: Granularity | None = None,
@@ -320,14 +333,19 @@ def compute_tempo(
     series = []
     for index in sorted(grouped):
         bucket = grouped[index]
-        adjusted = [hick_normalise(e.seconds, e.options) for e in bucket]
+        seconds = [e.seconds for e in bucket]
         series.append(
             {
                 "index": index,
                 "label": _bucket_label(index, grain),
                 # Median, not mean: one abandoned decision should not move it.
-                "median_seconds": round(median([e.seconds for e in bucket]), 1),
-                "adjusted_seconds": round(median(adjusted), 2),
+                "median_seconds": round(median(seconds), 1),
+                # Kept under its old key for the chart; it is now the raw
+                # median rather than a Hick-Hyman-normalised one.
+                "adjusted_seconds": round(median(seconds), 2),
+                # The covariate: how many alternatives were typically on the
+                # table in this bucket. Reported, not divided out.
+                "median_options": round(median([e.options for e in bucket]), 1),
                 "decisions": len(bucket),
             }
         )
@@ -340,9 +358,10 @@ def compute_tempo(
             "buckets": len(series),
             "needed": MIN_BUCKETS,
         },
-        "power_law": power_law_fit(
-            [hick_normalise(e.seconds, e.options) for e in timed]
-        ),
+        "power_law": power_law_fit([e.seconds for e in timed]),
+        # Option count as an experimental covariate: the overall median and
+        # whether it drifted, so a speed trend can be read against it.
+        "options_covariate": _options_covariate(timed),
     }
 
     if len(series) < MIN_BUCKETS:

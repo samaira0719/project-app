@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -22,6 +23,8 @@ from ..schemas import (
     StatsResponse,
     TaskIn,
     TaskOut,
+    TaskUpdate,
+    UserConfidenceIn,
 )
 from ..scoring import QUADRANT_KEYS, score_tasks
 from ..security import get_current_user
@@ -47,6 +50,48 @@ def create_task(
     db.commit()
     db.refresh(task)
     return task
+
+
+@router.patch("/{task_id}", response_model=TaskOut)
+def update_task(
+    task_id: int,
+    body: TaskUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TaskOut:
+    """Edit the "What" step of a task (title, category, due date, importance,
+    time estimate) without losing the options and criteria already entered.
+
+    The merged result is re-validated through TaskIn, so the category rules
+    (a Study task needs an estimate, nothing else keeps one) hold here too.
+    """
+    task = _owned_task(task_id, user, db)
+    changes = body.model_dump(exclude_unset=True)
+    merged = {
+        "title": task.title,
+        "category": task.category,
+        "due_date": task.due_date,
+        "importance": task.importance,
+        "estimated_minutes": task.estimated_minutes,
+        **changes,
+    }
+    try:
+        clean = TaskIn(**merged)
+    except ValidationError as exc:
+        # Same wording as the create path, in the 422 shape the client
+        # already knows how to display.
+        raise HTTPException(
+            422,
+            [{"msg": e["msg"].removeprefix("Value error, ")} for e in exc.errors()],
+        ) from exc
+    for name in ("title", "category", "due_date", "importance", "estimated_minutes"):
+        setattr(task, name, getattr(clean, name))
+    db.commit()
+    db.refresh(task)
+    entry = TaskOut.model_validate(task)
+    if task.decision is not None:
+        entry.decided_option = task.decision.result.get("best")
+    return entry
 
 
 @router.get("/prioritized", response_model=PrioritizedResponse)
@@ -162,6 +207,7 @@ def _decision_out(decision: TaskDecision, user: User) -> DecisionOut:
     rated = decision.feedback
     return DecisionOut(
         task_id=decision.task_id,
+        user_confidence=decision.user_confidence,
         options=decision.payload["options"],
         ratings=decision.payload["ratings"],
         context=decision.payload.get("context"),
@@ -227,7 +273,7 @@ def _store_decision(
 
     # What the tempo trend reads back (decision_tempo.py): how long the user
     # deliberated, and how many alternatives they were weighing while doing
-    # it - the second is needed to divide the first by Hick-Hyman difficulty.
+    # it - the second is reported as a covariate next to the first.
     # Both ride on the event rather than the decision row, so re-deciding
     # adds a point to the series instead of overwriting the previous one.
     timing = {
@@ -313,6 +359,35 @@ async def decide_task(
         ),
         user,
     )
+
+
+@router.patch("/{task_id}/decision/confidence", response_model=DecisionOut)
+def set_user_confidence(
+    task_id: int,
+    body: UserConfidenceIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> DecisionOut:
+    """Record the user's own confidence in the recommended choice (0-100).
+
+    This is a self-report, stored next to - never folded into - the
+    recommendation robustness score. Re-submitting overwrites the earlier
+    answer. Logged as a context-only event (no reward), so stated confidence
+    can later be compared with reported satisfaction.
+    """
+    task = _owned_task(task_id, user, db)
+    if task.decision is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No decision made for this task yet")
+    task.decision.user_confidence = body.confidence
+    fb.record_event(
+        db, user, "confidence_reported", task_id=task.id,
+        payload={"confidence": body.confidence,
+                 "best": (task.decision.result or {}).get("best")},
+        reward=None, credit={},
+    )
+    db.commit()
+    db.refresh(task)
+    return _decision_out(task.decision, user)
 
 
 @router.post("/{task_id}/decide-auto", response_model=DecisionOut)

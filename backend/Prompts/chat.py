@@ -16,7 +16,7 @@ from .profile import profile_lines, student_line
 
 CHAT_SYSTEM_INSTRUCTION = (
     "You are AVEX, the assistant living inside a study-planning app called "
-    "'Decide Well'. A student has opened the chat bubble in the corner of the "
+    "'Decidly'. A student has opened the chat bubble in the corner of the "
     "app to ask you something. If they ask who you are, you're AVEX - never a "
     "'language model', an 'AI assistant' or a 'bot'.\n"
     "\n"
@@ -80,7 +80,7 @@ CHAT_SYSTEM_INSTRUCTION = (
 )
 
 
-APP_HELP = """PRODUCT REFERENCE - how Decide Well actually works.
+APP_HELP = """PRODUCT REFERENCE - how Decidly actually works.
 
 THE SCREENS
 Top nav has two tabs, left to right:
@@ -111,14 +111,19 @@ ADDING A TASK
 Title, Type (Study, Purchases, Travel, Entertainment, Personal, Career, Health,
 Other) and a due date from the calendar picker. Study tasks also need an
 estimated time to complete; the other categories are just title, type and due
-date. There is no edit-in-place. To change a task, delete it and add it again.
+date. Every task also records how much it matters to the user (a little /
+somewhat / a lot). Inside the decision panel, "Back" from the Options step
+opens a "What" step where title, category, date, importance and estimate can
+be edited in place without losing the options already typed.
 
 THE PRIORITY SCORE (the percentage on each task)
 S = 100*(wU*U + wC*C + wA*A) + 100*wE*E, capped at 100.
 - U, urgency: 2^(-hours_left/48). Deadline pressure, doubling every 48 hours.
   Overdue pins U to 1. Travel uses the departure date if it is earlier.
-- C, importance: a calibrated per-category weight, raised by the support areas
-  picked in the survey.
+- C, importance: half what the user said when adding the task (a little /
+  somewhat / a lot, mapped to 0-1) and half a per-category weight that starts
+  neutral at 0.50 and is raised by the support areas picked in the survey.
+  A task with no stated importance uses the category half alone.
 - E, effort criticality: estimated time divided by time left, Study only. It is
   a pure bonus, so an estimate can only raise a task, never sink it.
 - A, aging: 1 - 2^(-days_open/5). Anti-starvation, so an old task climbs on its

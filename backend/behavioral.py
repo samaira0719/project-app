@@ -42,7 +42,7 @@ class Effect:
     name: str
     finding: str   # what the research shows
     source: str    # citation
-    lever: str     # what Decide Well does about it, in general
+    lever: str     # what Decidly does about it, in general
 
 
 EFFECTS: dict[str, Effect] = {

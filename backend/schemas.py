@@ -117,6 +117,10 @@ class TaskIn(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     category: Category
     due_date: datetime
+    # How much this matters to the user (1 = a little, 3 = somewhat,
+    # 5 = a lot). Optional so older clients keep working; when it is
+    # missing the engine falls back to category importance alone.
+    importance: int | None = Field(default=None, ge=1, le=5)
     # Study only
     estimated_minutes: int | None = Field(default=None, ge=5, le=6000)
     # Travel only
@@ -144,6 +148,28 @@ class TaskIn(BaseModel):
         return self
 
 
+class TaskUpdate(BaseModel):
+    """Edit the "What" step of a task in place. Every field is optional;
+    omitted fields are left as they are. The same category rules as TaskIn
+    apply to the merged result (see routers.tasks.update_task)."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    category: Category | None = None
+    due_date: datetime | None = None
+    importance: int | None = Field(default=None, ge=1, le=5)
+    estimated_minutes: int | None = Field(default=None, ge=5, le=6000)
+
+    @field_validator("title")
+    @classmethod
+    def strip_title(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("Title cannot be empty")
+        return value
+
+
 class FactorBreakdown(BaseModel):
     urgency: float
     importance: float
@@ -157,6 +183,7 @@ class TaskOut(BaseModel):
     title: str
     category: str
     due_date: datetime
+    importance: int | None = None
     estimated_minutes: int | None
     travel_from: str | None
     travel_to: str | None
@@ -299,6 +326,15 @@ class DecisionOut(BaseModel):
     assessment: dict | None = None
     # The user's own verdict once they have given one.
     feedback: dict | None = None
+    # The user's self-reported confidence in the choice (0-100), or None if
+    # they have not answered yet. A separate construct from `assessment`.
+    user_confidence: int | None = None
+
+
+class UserConfidenceIn(BaseModel):
+    """Self-report: "How sure am I about this choice?" on a 0-100 scale."""
+
+    confidence: int = Field(ge=0, le=100)
 
 
 Quadrant = Literal["do", "schedule", "delegate", "eliminate"]

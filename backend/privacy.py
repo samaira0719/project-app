@@ -225,7 +225,7 @@ YOUR_RIGHTS: list[dict[str, str]] = [
 ]
 
 AGE_NOTICE = (
-    "Decide Well is built for ages 14-25. If you are under 14, please confirm "
+    "Decidly is built for ages 14-25. If you are under 14, please confirm "
     "a parent or guardian is happy for you to use it before you continue."
 )
 
@@ -237,13 +237,13 @@ SUMMARY_LINE = (
     "measurement uses a temporary tab ID and IP address (or its configured hash)."
 )
 
-# Decide Well is a personal student project. The full notice says so, and
+# Decidly is a personal student project. The full notice says so, and
 # carries the user-testing terms from the consent form, so a tester reads the
 # same thing on screen as on paper.
 PROJECT_CONTEXT: dict[str, Any] = {
     "title": "About this project",
     "lines": [
-        "Decide Well - Student Decision Lab is a personal student project "
+        "Decidly - Student Decision Lab is a personal student project "
         "built to help students organise their work and think decisions "
         "through. It is not a commercial product.",
         "It is not affiliated with, endorsed by, reviewed by or certified by "

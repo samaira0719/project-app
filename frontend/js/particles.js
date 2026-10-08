@@ -1,5 +1,5 @@
 /**
- * Decide Well - login-screen dot mesh.
+ * Decidly - login-screen dot mesh.
  *
  * A perspective grid of tiny dots displaced by a slow travelling wave field.
  * The pointer lifts the sheet around it and lets it settle back over a long,

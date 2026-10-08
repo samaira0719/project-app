@@ -1,9 +1,9 @@
-# Decide Well — Student Decision Lab
+# Decidly — Student Decision Lab
 ### IRIS National Fair — Engineering Project Report
 
 | | |
 |---|---|
-| **Project** | Decide Well — a decision-making companion for students (ages 14–25) |
+| **Project** | Decidly — a decision-making companion for students (ages 14–25) |
 | **Suggested IRIS category** | Systems Software (alternatively: Behavioral & Social Sciences) |
 | **Type** | Web application (software prototype, no custom hardware) |
 | **Live link** | [project-app-production-a834.up.railway.app](https://project-app-production-a834.up.railway.app) |
@@ -48,7 +48,7 @@ x   ≥ 5D / w_j                         smallest rating error that flips the wi
 | Factor | Formula | Principle | Link |
 |---|---|---|---|
 | **U – Urgency** | `U = 2^(−hours_left / 48)`, overdue → 1 | Exponential decay, 48-hour half-life | [Exponential decay](https://en.wikipedia.org/wiki/Exponential_decay) |
-| **C – Importance** | neutral 0.50 + 0.25 per matching user-selected support area | Prototype personalization hypothesis; pilot validation needed | — |
+| **C – Importance** | `C = 0.5 × stated + 0.5 × category`; stated = user's own "a little / somewhat / a lot" (0 / 0.5 / 1); category = neutral 0.50 + 0.25 per matching user-selected support area | User-derived by design; the category half is a prototype personalization hypothesis needing pilot validation | — |
 | **E – Workload pressure** | `E = max(min(estimate / max(time_left, 0.25h), 1), quick_win × 2^(−estimated_hours))` | Capped prototype heuristic; not a feasibility estimate | — |
 | **A – Aging** | `A = 1 − 2^(−days_open / 5)` | Anti-starvation aging (OS schedulers) | [Aging](https://en.wikipedia.org/wiki/Aging_%28scheduling%29) |
 
@@ -66,11 +66,17 @@ has been removed. A selected support area adds 0.25 to its matching category. Th
 a provisional assumption that need for support indicates priority, and should be
 validated with student outcomes and direct user feedback.
 
+**Core technical stack.** The decision engine rests on four well-justified methods:
+SAW / weighted decision matrix → elimination of dominated options (Pareto check) →
+sensitivity analysis → bounded feedback adaptation. The statistical methods in 1.3 are used
+only to *analyse* the collected time series, not to make recommendations; anything not
+actively used in the prototype has been removed from the claims.
+
 ### 1.3 Statistics and learning-curve science (measuring improvement)
 
 | Method | Formula / purpose | Link |
 |---|---|---|
-| **Hick–Hyman law** | `T_norm = T / log₂(options + 1)` — fair comparison regardless of option count | [Hick's law](https://en.wikipedia.org/wiki/Hick%27s_law) |
+| **Number of options (covariate)** | Recorded per decision and reported as a control variable; times are *not* divided by `log₂(n + 1)`, because this is a deliberation task, not the choice reaction-time setting of the Hick–Hyman law | [Hick's law](https://en.wikipedia.org/wiki/Hick%27s_law) (why it is *not* applied) |
 | **Theil–Sen estimator** | Median of pairwise slopes — trend not fooled by outliers | [Theil–Sen](https://en.wikipedia.org/wiki/Theil%E2%80%93Sen_estimator) |
 | **Mann–Kendall test** | p-value for "is there really a trend?" | [Mann–Kendall](https://en.wikipedia.org/wiki/Mann%E2%80%93Kendall_test) |
 | **Power law of practice** | `T = a · N^(−b)` — learning rate b | [Power law of practice](https://en.wikipedia.org/wiki/Power_law_of_practice) |
@@ -107,7 +113,9 @@ validated with student outcomes and direct user feedback.
 | **Risk matrix** | Likelihood × Impact (5×5) | Project risk management |
 
 **Eisenhower cut-offs:** Urgent if `U ≥ 0.50` (exactly one 48-hour half-life) or `E ≥ 0.80`;
-Important if `C ≥ 0.70`.
+Important if the user said the task matters "a lot" (stated ≥ 4), or — for "somewhat" / no
+answer — if `C ≥ 0.70`. "A little" (stated ≤ 2) is never important. The important axis
+therefore reflects what the user told us, not a fixed category rank.
 
 ---
 
@@ -125,7 +133,7 @@ flowchart LR
     D --> E[App ranks tasks]
     E --> F[Pick a task]
     F --> G[List options + rate them]
-    G --> H[Winner + confidence + explanation]
+    G --> H[Winner + robustness score + explanation]
     H --> I[Do it + give feedback]
     I -. app learns .-> E
 ```
@@ -242,12 +250,15 @@ flowchart TB
 2. Creates an account (password stored scrambled/hashed).
 3. Takes the survey — the first 4 steps for everyone, later sections unlock only for the
    areas the user chooses (Studies, Health, Career, etc.).
-4. Adds tasks: title, category, due date (Study tasks also need a time estimate).
+4. Adds tasks: title, category, due date, and how much it matters to them (Study tasks
+   also need a time estimate). A Back button in the decision steps lets any of these be
+   corrected without starting over.
 5. The server calculates U, C, E, A for every task and shows a **ranked list**, an
    **Eisenhower matrix** and an **"Up Next"** card.
 6. User opens a task → lists options → weights criteria 1–5 → rates each option.
-7. Presses **"Decide for me"** → gets the winner and Recommendation Robustness Score; satisfaction is rated after the decision
-   and an **Audit** showing exactly how the score was built.
+7. Presses **"Decide for me"** → gets the winner, the Recommendation Robustness Score and
+   an **Audit** showing exactly how the score was built; then answers "how sure are you?"
+   (user confidence, 0–100, self-report). Satisfaction is rated after the decision.
 8. After acting, reports back (followed / adapted / rejected + stars) → the app adjusts
    itself slightly for next time.
 
@@ -283,7 +294,7 @@ flowchart TD
     R1 --> SAW
     R2 --> SAW[Score_i = 100 × Σ share_j × r_ij / 5]
     SAW --> AUD[Audit: Pareto check,<br/>equal-weight check, sensitivity]
-    AUD --> OUT[Show winner + confidence % + explanation]
+    AUD --> OUT[Show winner + robustness % + explanation]
     OUT --> FB[User reports: followed / adapted / rejected + stars]
     FB --> REW[r = 0.65·stars-3/2 + outcome]
     REW --> UPD[θ ← θ·exp α·r·c, clamp 0.65-1.55]
@@ -315,7 +326,9 @@ share_j = w_j / Σ w
 FOR each option i:     Score_i = 100 × Σ ( share_j × rating_ij / 5 )
 winner = highest score
 CHECK: Pareto dominance, equal-weights winner, smallest flip (δ_j, x)
-confidence = lead(30) + robustness(25) + input quality(20) + criteria breadth(15) + history(10)
+recommendation_robustness = lead(30) + robustness(25) + input quality(20) + criteria breadth(15) + history(10)
+user_confidence  = self-report 0–100 (asked, never computed)
+satisfaction     = 1–5 stars after acting (measured, never predicted)
 ```
 
 ---
@@ -549,7 +562,10 @@ development and as a backup for demos with no internet.
 | Adapted + 3★ | 0.00 |
 | Rejected + 1★ | −1.00 |
 
-### 13.4 Confidence score breakdown (0–100)
+### 13.4 Recommendation Robustness Score breakdown (0–100)
+
+This is a property of the recommendation, not of the user. User confidence (self-report)
+and post-decision satisfaction (rating after acting) are separate measurements.
 
 | Part | Max points |
 |---|---|

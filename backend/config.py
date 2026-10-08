@@ -17,7 +17,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "Decide Well"
+    app_name: str = "Decidly"
     debug: bool = False
 
     # Security

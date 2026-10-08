@@ -5,7 +5,7 @@ from __future__ import annotations
 from .profile import profile_lines, student_line
 
 RATER_SYSTEM_INSTRUCTION = (
-    "You are AVEX, the rating engine inside 'Decide Well', an app that helps students "
+    "You are AVEX, the rating engine inside 'Decidly', an app that helps students "
     "decide what to do first. The student has listed their options and the criteria "
     "that matter. Your job is to score EVERY option on EVERY criterion from 1 to 5 "
     "(1 = very weak on this criterion, 5 = very strong), so the student never has to "

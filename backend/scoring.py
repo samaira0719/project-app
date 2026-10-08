@@ -18,8 +18,14 @@ lower a task. All factors are normalised to [0, 1]:
       Rationale: deadline pressure is not linear - the difference between
       "due in 2h" and "due in 10h" matters far more than "due in 6 vs 7 days".
 
-  C - Category importance.
-      A neutral initialization, adjusted by this user’s survey signals.
+  C - Importance (user-derived).
+      Two halves. The user says how much the task matters when they add
+      it (1 = a little, 3 = somewhat, 5 = a lot), mapped to [0, 1]. The
+      other half is category importance: a neutral 0.50 initialisation,
+      adjusted by this user's survey signals. When both exist:
+          C = 0.5 * stated + 0.5 * category
+      A task created without the question falls back to category alone.
+      Neither half is a global constant about what students "should" value.
 
   E - Effort criticality (Study tasks with a time estimate).
       The critical ratio is estimated_hours / max(hours_remaining, 0.25).
@@ -93,10 +99,15 @@ the grid and the ranking can never disagree - they read the same numbers.
     urgent     means  U >= 0.5  (exactly 48h to the effective deadline)
                   or E >= 0.8 (the time budget is all but spent, so the
                   task is urgent even if the deadline still looks far off)
-    important  means  C >= 0.70 (personalised category importance)
+    important  means  the user said the task matters "a lot" (stated >= 4),
+                  or, when they said "somewhat" or never answered, the
+                  personalised category importance reaches 0.70. A task the
+                  user rated "a little" (stated <= 2) is never important.
 
 U = 0.5 corresponds to one deadline half-life. C = 0.70 is a prototype
-cutoff, not an established scientific boundary.
+cutoff, not an established scientific boundary. The stated-importance rule
+exists so the important axis reflects what the user told us rather than a
+threshold that category importance alone can rarely cross.
 """
 
 from __future__ import annotations
@@ -173,13 +184,25 @@ class ScoredTask:
     quadrant: str = "eliminate"
 
 
-def classify(factors: dict[str, float]) -> tuple[bool, bool, str]:
-    """Place one task in the Eisenhower matrix from its own factors."""
+def classify(
+    factors: dict[str, float], stated_importance: int | None = None
+) -> tuple[bool, bool, str]:
+    """Place one task in the Eisenhower matrix from its own factors.
+
+    `stated_importance` is the user's own 1-5 answer. "A lot" (>= 4) makes
+    the task important outright and "a little" (<= 2) rules it out; the
+    middle answer, or no answer, defers to the category-importance cutoff.
+    """
     urgent = (
         factors["urgency"] >= URGENT_URGENCY_CUTOFF
         or factors.get("effort", 0.0) >= URGENT_EFFORT_CUTOFF
     )
-    important = factors["importance"] >= IMPORTANT_CUTOFF
+    if stated_importance is not None and stated_importance >= 4:
+        important = True
+    elif stated_importance is not None and stated_importance <= 2:
+        important = False
+    else:
+        important = factors["importance"] >= IMPORTANT_CUTOFF
     if important:
         quadrant = "do" if urgent else "schedule"
     else:
@@ -317,9 +340,24 @@ def _urgency(task: Task, now: datetime) -> float:
     return 2.0 ** (-hours_left / DEADLINE_HALF_LIFE_HOURS)
 
 
-def _importance(task: Task, p: Personalization) -> float:
+def stated_importance_value(importance: int | None) -> float | None:
+    """Map the user's 1-5 answer onto [0, 1]; None when they never answered."""
+    if importance is None:
+        return None
+    return (max(1, min(5, int(importance))) - 1) / 4.0
+
+
+def _category_importance(task: Task, p: Personalization) -> float:
     base = CATEGORY_BASE_IMPORTANCE.get(task.category, 0.5)
     return min(1.0, base + p.category_boosts.get(task.category, 0.0))
+
+
+def _importance(task: Task, p: Personalization) -> float:
+    category = _category_importance(task, p)
+    stated = stated_importance_value(getattr(task, "importance", None))
+    if stated is None:
+        return category
+    return 0.5 * stated + 0.5 * category
 
 
 def _effort(task: Task, now: datetime, p: Personalization) -> float | None:
@@ -347,7 +385,10 @@ def _reason(task: Task, factors: dict[str, float], now: datetime) -> str:
         parts.append(f"the deadline is only {max(hours_left, 1):.0f}h away")
     if factors.get("effort", 0) >= 0.7 and task.estimated_minutes:
         parts.append("the remaining time barely covers the estimated effort")
-    if factors["importance"] >= 0.8:
+    stated = getattr(task, "importance", None)
+    if stated is not None and stated >= 4:
+        parts.append("you said it matters a lot to you")
+    elif factors["importance"] >= 0.8:
         parts.append(f"{task.category.lower()} ranks high in your priorities")
     if factors["aging"] >= 0.6:
         parts.append("it has been waiting in your backlog")
@@ -388,7 +429,9 @@ def score_tasks(
                 reason += f" You already decided: go with {best}."
 
         weights_out = {**p.core, "effort": p.effort_bonus}
-        urgent, important, quadrant = classify(factors)
+        urgent, important, quadrant = classify(
+            factors, getattr(task, "importance", None)
+        )
         scored.append(
             ScoredTask(
                 task=task,

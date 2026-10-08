@@ -1,1 +1,1 @@
-"""API routers for Decide Well."""
+"""API routers for Decidly."""

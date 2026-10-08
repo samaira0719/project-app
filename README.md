@@ -1,4 +1,4 @@
-# Decide Well - Student Decision Lab
+# Decidly - Student Decision Lab
 
 A full-stack decision-making companion for students (ages 14-25). Users log in, complete
 the User Decision-Making Survey once, add tasks, and the **priority scoring engine**
@@ -86,16 +86,25 @@ curl -i -X POST http://127.0.0.1:8000/api/usage/heartbeat \
    Insights, History and Profile sit in the menu under the user's initials.
 3. **Add tasks** - category dropdown (Study, Purchases, Travel, Entertainment, Personal,
    Career, Health, Other) with due date. Category-specific behavior:
-   - **Study** adds an estimated time to complete
+   - **Study** adds an estimated time to complete (the home form shows time chips
+     as soon as Study is picked)
    - **Travel** uses a date-only due date (no timestamp)
    - everything else is just title + due date + category
+   - every task also asks **how much it matters to you** (a little / somewhat / a lot).
+     This user-stated importance is half of the importance factor and decides the
+     "important" axis of the matrix - see [The Eisenhower matrix](#the-eisenhower-matrix).
+   Inside the decision panel, **Back** from the Options step opens a "What" step where
+   title, category, date, importance and estimate can be corrected in place without
+   losing the options and criteria already entered.
 4. Tasks are stored per-user in **Neon Postgres** (`DATABASE_URL` in `.env`; falls back
    to local SQLite if unset).
 5. The engine **auto-ranks** pending tasks; My tasks opens on a "Start with this" card for
    the #1 task, with its reason and a "Why this order?" AI explanation.
-6. Each decision returns an itemised **Recommendation Robustness Score**. Afterwards
-   the user reports how satisfied they were, and that verdict retunes the engine - see
-   [The feedback loop](#the-feedback-loop).
+6. Each decision returns an itemised **Recommendation Robustness Score**, and asks the
+   user how sure *they* are (a 0-100 self-report). Afterwards the user reports how
+   satisfied they were, and that verdict retunes the engine - see
+   [The feedback loop](#the-feedback-loop). Three constructs, three measurements - see
+   [Three separate measurements](#three-separate-measurements).
 
 ## Light and dark
 
@@ -226,9 +235,15 @@ disagree:
 ```
 urgent    means U >= 0.50  (exactly 48h to the effective deadline)
              or E >= 0.80 (the time budget is all but spent)
-important means C >= 0.70  (personalised category importance)
+important means the user said the task matters "a lot" (stated importance >= 4),
+             or, for "somewhat" / no answer, C >= 0.70 (personalised category importance).
+             A task rated "a little" (<= 2) is never important.
 ```
 
+The importance factor itself is `C = 0.5 * stated + 0.5 * category` when the user has
+answered (stated 1/3/5 maps to 0 / 0.5 / 1), and the category half alone otherwise. The
+category half starts neutral at 0.50 for every category and is raised only by the user's
+own survey answers, so there is no global ranking of what students "should" value.
 `U = 0.5` corresponds to one deadline half-life. `C = 0.70` is a prototype cutoff,
 not a scientifically established boundary. Each quadrant carries the finding that justifies it, and the *shape* of the grid
 is read back to the user - a full "Delegate" quadrant triggers the mere-urgency warning,
@@ -347,7 +362,7 @@ Every step borrows a published result rather than inventing a metric
 
 | Step | Method | Why this one |
 |---|---|---|
-| Normalise the raw latency | **Hick-Hyman law**, `T / log2(options + 1)` | Choice time grows with the log of the number of alternatives, so a six-option decision is *expected* to take longer. Without this the metric would mostly measure how many options someone typed. |
+| Record the option count | **Covariate**, not a normaliser | More alternatives can reasonably take longer, but this is a deliberation task (weighted criteria, subjective ratings, written reasons), not the choice reaction-time setting the Hick-Hyman law was measured in. Dividing by `log2(n + 1)` would assert a "fair" time the evidence does not support, so raw seconds are trended and the median option count (overall and per half of the history) is reported alongside as a control variable. |
 | Summarise a bucket | **Median**, not mean | One decision left open on a forgotten tab must not move the day. |
 | Fit the trend | **Theil-Sen slope** (median of all pairwise slopes) | ~29% breakdown point. Least squares would let a single outlier manufacture a trend. |
 | Test the trend | **Mann-Kendall**, with tie correction and continuity correction | Gives a p-value without assuming normality, which response-time data never has. |
@@ -399,6 +414,21 @@ a single series, so colour never has to tell two things apart, and every verdict
 pairs its colour with the word, so nothing is encoded by hue alone. The SVGs are drawn at
 measured pixel width and redrawn on resize, so axis text stays legible on a phone instead
 of being scaled down with the viewBox.
+
+## Three separate measurements
+
+The app keeps three psychological constructs apart, because an algorithm cannot know how
+confident a person feels:
+
+| Metric | Meaning | How measured | Where stored |
+|---|---|---|---|
+| **User confidence** | "How sure am I about this choice?" | Self-report, 0-100 slider on the Answer step | `task_decisions.user_confidence` |
+| **Recommendation robustness** | "How strongly does the data support this option?" | Margin + sensitivity + input quality (below) | `task_decisions.assessment` |
+| **Post-decision satisfaction** | "Was I happy with this choice afterwards?" | 1-5 stars after acting | `decision_feedback.satisfaction` |
+
+None of the three is derived from another. There is no "predicted satisfaction": the app
+has no validated model linking history to future satisfaction, so it reports only what
+was measured.
 
 ## Recommendation Robustness Score and post-decision satisfaction
 
@@ -587,10 +617,10 @@ backend/
   scoring.py      the priority scoring engine + Eisenhower placement
   decision_engine.py  option-level MCDA, and the audit that re-derives it
   behavioral.py   the behavioural-science correlation layer (explanation only)
-  decision_tempo.py  the speed / confidence trend: Hick-Hyman normalisation,
+  decision_tempo.py  the speed / volume trend: option count as a covariate,
                   Theil-Sen slope, Mann-Kendall test, power law of practice
   feedback.py     the reinforcement loop: reward, credit, policy update, and
-                  the confidence / predicted-satisfaction scoring
+                  the recommendation robustness scoring
   privacy.py      the data-protection notice and consent scopes (one source of
                   truth for the sign-up form and the server that validates it)
   gemini.py       Gemini REST client + fallback insights

@@ -1,1 +1,1 @@
-"""Decide Well - student decision-making companion (backend package)."""
+"""Decidly - student decision-making companion (backend package)."""

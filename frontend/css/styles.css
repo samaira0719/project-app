@@ -1,5 +1,5 @@
 /* ============================================================
-   Decide Well - design system
+   Decidly - design system
    Dashboard: Tricorn Black on warm white, Soft Sage as the accent.
    Type: Sora (display) / Inter.
    ============================================================ */
@@ -507,7 +507,7 @@ button:focus-visible {
   position: sticky; top: 0; z-index: 20;
 }
 .app-brand { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-.brand-tagline { color: var(--muted); font-size: .68rem; line-height: 1.2; letter-spacing: .015em; white-space: nowrap; }
+.brand-tagline { color: var(--ink-2); font-size: .68rem; line-height: 1.2; letter-spacing: .015em; white-space: nowrap; }
 .app-nav { display: flex; gap: 2px; flex: 1; justify-content: center; flex-wrap: wrap; }
 .app-nav button {
   border: none; background: transparent;
@@ -3520,3 +3520,22 @@ body.eis-dragging .eis-cell:not(.drop-target) { opacity: .78; }
 /* the add box has to shrink, or its Add button falls off a phone screen */
 .add-row input { flex: 1 1 auto; min-width: 0; }
 .add-row .btn-dark { flex-shrink: 0; }
+
+
+/* ---- user-confidence self-report (decision result) ---- */
+.conf-card .conf-row { display: flex; align-items: center; gap: 14px; margin-top: 10px; flex-wrap: wrap; }
+.conf-card input[type="range"] { flex: 1 1 200px; min-width: 160px; accent-color: var(--sage-deep, var(--primary)); cursor: pointer; }
+.conf-value { min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
+.conf-note { margin: 10px 0 0; font-size: .9rem; color: var(--ink-2); }
+.conf-card.is-done { border-color: var(--sage-deep, var(--primary)); }
+
+/* The three constructs, side by side, once a decision has been rated. */
+.construct-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 12px 0 0; }
+.construct-grid > div { padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
+.construct-grid dt { font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-2); }
+.construct-grid dd { margin: 2px 0 0; font-size: 1.25rem; font-weight: 700; }
+.construct-grid small { display: block; font-size: .74rem; color: var(--ink-2); }
+
+/* The in-modal "What" step reuses the home form's chips and input. */
+.what-date { max-width: 240px; }
+#modal-body .ask-group { margin-top: 16px; }

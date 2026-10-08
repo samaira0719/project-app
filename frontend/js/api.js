@@ -52,6 +52,9 @@ export const api = {
   saveSurvey: (answers) => request("PUT", "/api/survey", { answers }),
 
   createTask: (payload) => request("POST", "/api/tasks", payload),
+  // Edit the "What" step in place (title, category, due_date, importance,
+  // estimated_minutes). Options and criteria already entered are untouched.
+  updateTask: (id, payload) => request("PATCH", `/api/tasks/${id}`, payload),
   listTasks: (status) =>
     request("GET", `/api/tasks${status ? `?status_filter=${status}` : ""}`),
   prioritized: () => request("GET", "/api/tasks/prioritized"),
@@ -68,6 +71,9 @@ export const api = {
   getDecision: (id) => request("GET", `/api/tasks/${id}/decision`),
   decideTask: (id, payload) => request("POST", `/api/tasks/${id}/decide`, payload),
   decideTaskAuto: (id, payload) => request("POST", `/api/tasks/${id}/decide-auto`, payload),
+  // The user's own 0-100 answer to "how sure are you about this choice?".
+  setDecisionConfidence: (id, confidence) =>
+    request("PATCH", `/api/tasks/${id}/decision/confidence`, { confidence }),
 
   // The assistant bubble. `history` is the prior turns, oldest first; the
   // account snapshot is rebuilt server-side on every turn, never sent up.

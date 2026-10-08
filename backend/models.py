@@ -97,6 +97,13 @@ class Task(Base):
     # Study only
     estimated_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # How much this matters to the user, in their own words: 1 = a little,
+    # 3 = somewhat, 5 = a lot. NULL for tasks created before the question
+    # existed; the engine then falls back to category importance alone.
+    # This is the user-derived half of the importance factor (scoring.py),
+    # so "important" is something the user said, not a global constant.
+    importance: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     # Travel only
     travel_from: Mapped[str | None] = mapped_column(String(120), nullable=True)
     travel_to: Mapped[str | None] = mapped_column(String(120), nullable=True)
@@ -138,6 +145,12 @@ class TaskDecision(Base):
     # comparing what was predicted then against what the user reports now
     # is the whole calibration signal.
     assessment: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # The user's own answer to "how sure are you about this choice?" (0-100),
+    # given on the result screen. Kept apart from the recommendation
+    # robustness score (what the system thinks of the data) and from
+    # post-decision satisfaction (how it turned out): three constructs,
+    # three columns.
+    user_confidence: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
@@ -191,7 +204,8 @@ class Interaction(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     # chat_question | decision_made | recommendation_followed |
     # recommendation_rejected | satisfaction_rated | ratings_corrected |
-    # decision_redone | task_completed | task_overdue | quadrant_override
+    # decision_redone | task_completed | task_overdue | quadrant_override |
+    # confidence_reported
     kind: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     task_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Free-form, kind-specific detail (the question text, the option chosen,

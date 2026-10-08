@@ -1,4 +1,4 @@
-/** Decide Well - SPA controller. */
+/** Decidly - SPA controller. */
 
 import { api, ApiError, getToken, setToken } from "./api.js?v=28";
 import { startParticles, stopParticles } from "./particles.js?v=15";
@@ -343,9 +343,9 @@ function infoIsOpen() {
 function aboutHtml() {
   return `
     <div class="info-doc">
-      <span class="dec-kicker">ABOUT DECIDE WELL</span>
+      <span class="dec-kicker">ABOUT DECIDLY</span>
       <h2 id="info-title" class="info-title">A decision-making companion for students</h2>
-      <p class="info-lead">Decide Well ranks what's on your plate with real math,
+      <p class="info-lead">Decidly ranks what's on your plate with real math,
         then explains why.</p>
 
       <h3>What it does</h3>
@@ -372,7 +372,7 @@ function aboutHtml() {
       </ol>
 
       <h3>About this project</h3>
-      <p>Decide Well - Student Decision Lab is a personal student project. It is
+      <p>Decidly - Student Decision Lab is a personal student project. It is
         an educational tool for organising work and thinking decisions through.
         It is not professional advice, and it is not affiliated with any school,
         university or technology company.</p>
@@ -1072,7 +1072,14 @@ function upNextHtml(data) {
    context, and the decision workspace opens on a task created for it -
    nobody has to understand "tasks" before they can get help deciding. */
 
-const home = { category: null, days: 7 };
+const home = { category: null, days: 7, importance: 3, estimate: null };
+
+/** Minutes -> the chip label used on the home form and the "What" step. */
+const ESTIMATE_CHIPS = [
+  [15, "15 min"], [30, "30 min"], [60, "1 hour"], [120, "2 hours"],
+  [240, "Half a day"], [480, "A full day+"],
+];
+const IMPORTANCE_CHIPS = [[1, "A little"], [3, "Somewhat"], [5, "A lot"]];
 
 /** Pick one chip in a radiogroup and mirror it in aria-checked. */
 function selectChip(group, btn) {
@@ -1169,6 +1176,10 @@ async function handleAskSubmit(event, later = false) {
     return fail("Pick what it's about - it decides which questions come next.",
       $("#ask-category button"));
   }
+  if (home.category === "Study" && !home.estimate) {
+    return fail("Study decisions need a rough time estimate - pick one above.",
+      $("#ask-estimate button"));
+  }
 
   // "Today" means the end of today; anything else is that many days out,
   // also at the end of the day, so urgency isn't inflated by the clock time.
@@ -1183,11 +1194,16 @@ async function handleAskSubmit(event, later = false) {
   try {
     const task = await api.createTask({
       title, category: home.category, due_date: due.toISOString(),
+      importance: home.importance,
+      estimated_minutes: home.category === "Study" ? home.estimate : null,
     });
     state.taskIndex[task.id] = task;
     $("#ask-title").value = "";
     home.category = null;
+    home.estimate = null;
     selectChip($("#ask-category"), null);
+    selectChip($("#ask-estimate"), null);
+    $("#ask-estimate-group").classList.add("hidden");
     if (later) {
       toast("Saved to My tasks - decide it whenever you're ready.");
       renderHome();
@@ -1210,6 +1226,22 @@ function bindHome() {
     if (!btn) return;
     home.category = btn.dataset.cat;
     selectChip($("#ask-category"), btn);
+    // The estimate question only exists for Study.
+    $("#ask-estimate-group").classList.toggle("hidden", home.category !== "Study");
+    $("#ask-error").classList.add("hidden");
+  });
+  $("#ask-estimate").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-min]");
+    if (!btn) return;
+    home.estimate = parseInt(btn.dataset.min, 10);
+    selectChip($("#ask-estimate"), btn);
+    $("#ask-error").classList.add("hidden");
+  });
+  $("#ask-importance").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-imp]");
+    if (!btn) return;
+    home.importance = parseInt(btn.dataset.imp, 10);
+    selectChip($("#ask-importance"), btn);
   });
   $("#ask-when").addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-days]");
@@ -1897,7 +1929,7 @@ function drawTempo() {
       ${tempoTile("Speed", data.speed.score, data.speed.verdict, data.speed.evidence,
         `${data.speed.pct_change_per_bucket > 0 ? "+" : ""}${
           data.speed.pct_change_per_bucket}% time per decision, each ${unit}`)}
-      ${tempoTile("Confidence", data.confidence.score, data.confidence.verdict,
+      ${tempoTile("Volume", data.confidence.score, data.confidence.verdict,
         data.confidence.evidence,
         `${data.confidence.slope > 0 ? "+" : ""}${data.confidence.slope} decisions per ${unit}`)}
     </div>
@@ -1906,13 +1938,14 @@ function drawTempo() {
       ${tempoPanel(rows, {
         kind: "line", values: rows.map((r) => r.adjusted_seconds), width: half,
         title: "Time spent per decision",
-        subtitle: `Median, adjusted for how many options were on the table. Down is faster.`,
+        subtitle: `Median seconds, as measured. Down is faster.${data.options_covariate
+          ? ` Decisions had ${data.options_covariate.median} options on average.` : ""}`,
         unit: "s", granularity: data.granularity,
       })}
       ${tempoPanel(rows, {
         kind: "bar", values: rows.map((r) => r.decisions), width: half,
         title: "Decisions made",
-        subtitle: `How many you settled each ${unit}. Up reads as confidence.`,
+        subtitle: `How many you settled each ${unit}. Up means deciding more freely.`,
         unit: "n", granularity: data.granularity,
       })}
     </div>
@@ -1921,10 +1954,14 @@ function drawTempo() {
       <summary>How this is calculated</summary>
       <div class="tp-method-body">
         <p>Each decision is timed in the browser from opening the decision panel
-          to submitting it, then divided by <strong>log&#8322;(options + 1)</strong> - the
-          <strong>Hick-Hyman law</strong>, which says choice time grows with the logarithm
-          of the number of alternatives. Without that, picking between six
-          options would always look like "slowing down".</p>
+          to submitting it. Times are <strong>not</strong> normalised by the number of
+          options: this is a deliberation task, not the reaction-time setting the
+          Hick-Hyman law describes, so the option count is reported as a
+          <strong>control variable</strong> instead.${data.options_covariate ? `
+          Your decisions had ${data.options_covariate.min}-${data.options_covariate.max} options
+          (median ${data.options_covariate.median}; first half ${data.options_covariate.first_half_median},
+          second half ${data.options_covariate.second_half_median}). If that drifted,
+          read the speed trend with it in mind.` : ""}</p>
         <p>The trend in each series is a <strong>Theil-Sen slope</strong> (the median of
           every pairwise slope, so one abandoned tab cannot create a trend) and
           its significance is a <strong>Mann-Kendall test</strong>, which assumes nothing
@@ -2315,7 +2352,8 @@ function bindWizardEvents(section, visibleQuestions, sections) {
 const dec = {
   task: null, template: null,
   options: [], criteria: [], ratings: {}, context: "",
-  stage: "options", // options | criteria | rate | result
+  stage: "options", // what | options | criteria | rate | result
+  whatDraft: null,  // unsaved edits on the "What" step
   result: null,
   // Deliberation clock, feeding the tempo trend on the Insights tab.
   // performance.now() rather than Date.now(), so a system clock change or an
@@ -2375,6 +2413,7 @@ async function openDecision(task) {
   dec.task = task;
   dec.stage = "options";
   dec.result = null;
+  dec.whatDraft = null;
   decClockReset();
   openModal();
   $("#modal-body").innerHTML = `<div class="empty">Loading...</div>`;
@@ -2409,7 +2448,7 @@ async function openDecision(task) {
    typed on the home screen, or already there when opened from My tasks - so
    the workspace always opens on step 2. */
 const DEC_STEPS = ["What", "Options", "What matters", "Answer"];
-const DEC_STEP_OF = { options: 1, criteria: 2, rate: 2, result: 3 };
+const DEC_STEP_OF = { what: 0, options: 1, criteria: 2, rate: 2, result: 3 };
 
 function decSteps() {
   const current = DEC_STEP_OF[dec.stage] ?? 1;
@@ -2432,7 +2471,8 @@ function decHeader(subtitle) {
 }
 
 function renderDecision() {
-  if (dec.stage === "options") renderDecOptions();
+  if (dec.stage === "what") renderDecWhat();
+  else if (dec.stage === "options") renderDecOptions();
   else if (dec.stage === "criteria") renderDecCriteria();
   else if (dec.stage === "rate") renderDecRate();
   else renderDecResult();
@@ -2443,6 +2483,142 @@ function decError(message) {
   const err = $("#dec-err");
   err.textContent = message;
   err.classList.remove("hidden");
+}
+
+/* ---- step 1: what (edit in place) ----
+   The task was typed on the home screen, so this step normally never shows.
+   Back from step 2 opens it, so a wrong title, category, date or importance
+   can be fixed without starting over and losing the options already typed. */
+
+function toDateInputValue(iso) {
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function chipGroup(id, items, selected, attr) {
+  return `
+    <div class="ask-chips" id="${id}" role="radiogroup">
+      ${items.map(([value, label]) => `
+        <button type="button" role="radio" data-${attr}="${value}"
+                aria-checked="${String(value) === String(selected)}"
+                class="${String(value) === String(selected) ? "sel" : ""}">${label}</button>`).join("")}
+    </div>`;
+}
+
+function renderDecWhat() {
+  const t = dec.task;
+  const draft = dec.whatDraft || (dec.whatDraft = {
+    title: t.title,
+    category: t.category,
+    due: toDateInputValue(t.due_date),
+    importance: t.importance ?? 3,
+    estimate: t.estimated_minutes ?? null,
+  });
+  const categories = [
+    ["Study", "Study"], ["Career", "Career"], ["Purchases", "Buying something"],
+    ["Travel", "Travel"], ["Health", "Health"], ["Entertainment", "Fun &amp; free time"],
+    ["Personal", "Personal"], ["Other", "Something else"],
+  ];
+  $("#modal-body").innerHTML = `
+    ${decSteps()}
+    <div class="dec-kicker">STEP 1</div>
+    <div class="dec-title">What are you deciding?</div>
+    <div class="dec-sub">Fix any detail here. Your options and criteria are kept.</div>
+
+    <div class="dec-section">
+      <label class="dec-label" for="what-title">The decision, in your words</label>
+      <input id="what-title" class="ask-input" type="text" maxlength="255"
+             value="${escapeHtml(draft.title)}" autocomplete="off" />
+
+      <div class="ask-group">
+        <span class="ask-label">What's it about?</span>
+        ${chipGroup("what-category", categories, draft.category, "cat")}
+      </div>
+
+      <div class="ask-group ${draft.category === "Study" ? "" : "hidden"}" id="what-estimate-group">
+        <span class="ask-label">Roughly how long will it take?</span>
+        ${chipGroup("what-estimate", ESTIMATE_CHIPS, draft.estimate, "min")}
+      </div>
+
+      <div class="ask-group">
+        <span class="ask-label">How much does this matter to you?</span>
+        ${chipGroup("what-importance", IMPORTANCE_CHIPS, draft.importance, "imp")}
+      </div>
+
+      <div class="ask-group">
+        <label class="ask-label" for="what-due">When do you need to decide by?</label>
+        <input id="what-due" class="ask-input what-date" type="date" value="${draft.due}" />
+      </div>
+    </div>
+
+    <div class="dec-nav">
+      <button class="ghost-btn" id="dec-cancel">Cancel</button>
+      <span class="wiz-err hidden" id="dec-err"></span>
+      <span class="spacer"></span>
+      <button class="btn-primary" id="dec-next">Save &amp; continue &rarr;</button>
+    </div>`;
+
+  const bindChips = (id, attr, onPick) => {
+    const group = $(`#${id}`);
+    group.addEventListener("click", (e) => {
+      const btn = e.target.closest(`button[data-${attr}]`);
+      if (!btn) return;
+      selectChip(group, btn);
+      onPick(btn.dataset[attr]);
+    });
+  };
+  bindChips("what-category", "cat", (value) => {
+    draft.category = value;
+    $("#what-estimate-group").classList.toggle("hidden", value !== "Study");
+  });
+  bindChips("what-estimate", "min", (value) => { draft.estimate = parseInt(value, 10); });
+  bindChips("what-importance", "imp", (value) => { draft.importance = parseInt(value, 10); });
+
+  $("#dec-cancel").addEventListener("click", closeModal);
+  $("#dec-next").addEventListener("click", async () => {
+    draft.title = $("#what-title").value.trim();
+    draft.due = $("#what-due").value;
+    if (!draft.title) { decError("Tell us what you're deciding."); $("#what-title").focus(); return; }
+    if (!draft.due) { decError("Pick a date."); $("#what-due").focus(); return; }
+    if (draft.category === "Study" && !draft.estimate) {
+      decError("Study decisions need a rough time estimate."); return;
+    }
+    const due = new Date(`${draft.due}T23:59:00`);
+    const payload = {
+      title: draft.title,
+      category: draft.category,
+      due_date: due.toISOString(),
+      importance: draft.importance,
+      estimated_minutes: draft.category === "Study" ? draft.estimate : null,
+    };
+    const btn = $("#dec-next");
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spin"></span> Saving...`;
+    try {
+      const categoryChanged = draft.category !== dec.task.category;
+      const updated = await api.updateTask(dec.task.id, payload);
+      dec.task = { ...dec.task, ...updated };
+      state.taskIndex[updated.id] = { ...(state.taskIndex[updated.id] || {}), ...updated };
+      if (categoryChanged) {
+        // A different kind of decision suggests different criteria. Options
+        // are the user's own words, so they stay.
+        dec.template = await api.decisionTemplate(updated.category);
+        if (!dec.result) {
+          dec.criteria = dec.template.criteria.map((c) => ({ ...c, weight: null }));
+          dec.ratings = {};
+        }
+      }
+      dec.whatDraft = null;
+      dec.stage = "options";
+      renderDecision();
+    } catch (err) {
+      btn.disabled = false;
+      btn.innerHTML = "Save &amp; continue &rarr;";
+      decError(err.message || "Could not save that.");
+    }
+  });
+  $("#what-title").focus();
 }
 
 /* ---- step 2: the options ---- */
@@ -2470,11 +2646,21 @@ function renderDecOptions() {
     </div>
 
     <div class="dec-nav">
+      <button class="ghost-btn" id="dec-back" title="Change the question, category, date or how much it matters">&larr; Back</button>
       <button class="ghost-btn" id="dec-cancel">Cancel</button>
       <span class="wiz-err hidden" id="dec-err"></span>
       <span class="spacer"></span>
       <button class="btn-primary" id="dec-next">Next: what matters &rarr;</button>
     </div>`;
+
+  $("#dec-back").addEventListener("click", () => {
+    // Keep whatever is typed in the box so coming back does not lose it.
+    const pending = $("#dec-opt-input").value.trim();
+    if (pending && !dec.options.some((o) => o.toLowerCase() === pending.toLowerCase())
+        && dec.options.length < 8) dec.options.push(pending);
+    dec.stage = "what";
+    renderDecision();
+  });
 
   const input = $("#dec-opt-input");
   const addOption = () => {
@@ -3097,6 +3283,66 @@ function assessmentPanel(assessment) {
     </div>`;
 }
 
+/* ---- user confidence: a self-report, kept apart from robustness ----
+   Three different constructs, three different measurements:
+     user confidence            "how sure am I?"          the user, 0-100, now
+     recommendation robustness  "how strong is the data?" the engine, 0-100
+     post-decision satisfaction "was it a good call?"     the user, after acting */
+
+function confidencePanel(r) {
+  const given = r.user_confidence;
+  const value = given ?? 70;
+  return `
+    <div class="dec-section conf-card${given != null ? " is-done" : ""}" id="conf-card">
+      <div class="fb-head">
+        <span class="dec-label" style="margin:0">How sure are you about this choice?</span>
+        <span class="tag">${given != null ? "Recorded" : "Your own read"}</span>
+      </div>
+      <p class="dec-help">
+        This is <em>your</em> confidence, not the robustness score above. The
+        robustness score describes the data; only you can say how sure you feel.
+        Later you'll rate how it actually went - a third, separate number.
+      </p>
+      <div class="conf-row">
+        <input id="conf-range" type="range" min="0" max="100" step="5" value="${value}"
+               aria-label="Your confidence, 0 to 100" />
+        <strong id="conf-value" class="conf-value">${value}%</strong>
+        <button type="button" class="btn-dark" id="conf-save">${given != null ? "Update" : "Save"}</button>
+      </div>
+      <p id="conf-note" class="conf-note ${given != null ? "" : "hidden"}">
+        You said you are <strong>${given ?? 0}%</strong> sure.
+      </p>
+    </div>`;
+}
+
+function bindConfidence() {
+  const card = $("#conf-card");
+  if (!card) return;
+  const range = $("#conf-range");
+  const label = $("#conf-value");
+  range.addEventListener("input", () => { label.textContent = `${range.value}%`; });
+  $("#conf-save").addEventListener("click", async () => {
+    const btn = $("#conf-save");
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+    try {
+      const updated = await api.setDecisionConfidence(dec.task.id, parseInt(range.value, 10));
+      dec.result = { ...dec.result, user_confidence: updated.user_confidence };
+      card.classList.add("is-done");
+      card.querySelector(".tag").textContent = "Recorded";
+      const note = $("#conf-note");
+      note.innerHTML = `You said you are <strong>${updated.user_confidence}%</strong> sure.`;
+      note.classList.remove("hidden");
+      btn.textContent = "Update";
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Could not save that.");
+      btn.textContent = "Save";
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
 const OUTCOME_OPTIONS = [
   ["followed", "I went with it", "The recommendation was right."],
   ["modified", "I adapted it", "Roughly right, but I changed something."],
@@ -3119,6 +3365,11 @@ function feedbackPanel(r) {
           <strong>${actual.toFixed(0)}%</strong>.
           This is your post-decision satisfaction rating.
         </p>
+        <dl class="construct-grid" aria-label="The three measurements, side by side">
+          <div><dt>Your confidence</dt><dd>${r.user_confidence != null ? `${r.user_confidence}%` : "not given"}</dd><small>self-report, at decision time</small></div>
+          <div><dt>Recommendation robustness</dt><dd>${given.predicted_confidence != null ? `${Math.round(given.predicted_confidence)}%` : "-"}</dd><small>what the data supported</small></div>
+          <div><dt>Satisfaction</dt><dd>${actual.toFixed(0)}%</dd><small>how it turned out</small></div>
+        </dl>
         ${given.note ? `<p class="fb-note">${escapeHtml(given.note)}</p>` : ""}
         <button type="button" class="ghost-btn" id="fb-redo">Change my rating</button>
       </div>`;
@@ -3324,6 +3575,8 @@ function renderDecResult() {
 
     ${assessmentPanel(r.assessment)}
 
+    ${confidencePanel(r)}
+
     ${r.insight ? `
       <div class="insight-panel" style="margin-bottom:16px">
         <div class="insight-head"><span>Why this choice</span>
@@ -3346,6 +3599,7 @@ function renderDecResult() {
     </div>`;
 
   bindFeedback();
+  bindConfidence();
   // Both of these start a fresh round of thinking, so the clock restarts:
   // the tempo series wants the time spent on *this* decision, not the time
   // since the result screen happened to be opened.

@@ -49,8 +49,8 @@ def get_db() -> Generator[Session, None, None]:
 # additive, nullable column - safe to apply to a live database, and a no-op
 # once it is there.
 ADDED_COLUMNS: dict[str, dict[str, str]] = {
-    "tasks": {"quadrant_override": "VARCHAR(20)"},
-    "task_decisions": {"assessment": "JSON"},
+    "tasks": {"quadrant_override": "VARCHAR(20)", "importance": "INTEGER"},
+    "task_decisions": {"assessment": "JSON", "user_confidence": "INTEGER"},
     "users": {
         "privacy_version": "VARCHAR(32)",
         "privacy_accepted_at": "TIMESTAMP",
